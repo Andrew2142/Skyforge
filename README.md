@@ -1,11 +1,8 @@
 # Skyforge
 
-**A Claude Code skill that turns your assistant into the calm manager of a small shop of AI workers.**
+**A Claude Code skill that delegates your prompts across multiple AI agents.**
 
-You hand over the work. Instead of doing it in the chat, Skyforge breaks the
-work into tasks, dispatches each one to a background worker agent, and keeps the
-whole shop on a durable board you can trust. Workers run while you keep feeding
-in more — the factory never has to drain before it will take the next request.
+Tired of juggling multiple CLI windows? Skyforge lets you work from a single chat window while your prompts get delegated to sub-agents, all overseen by one manager, making it a simpler way to get work done rather than switching windows every few seconds. Just keep feeding the manager tasks, and it delegates to sub-agents like a factory floor.
 
 > You speak in tasks. It runs the shop, and answers in a single line when the work is done.
 
