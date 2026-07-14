@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>*{margin:0;padding:0;box-sizing:border-box}img{max-width:100%}</style>
-<title>Skyforge — delegate your prompts across multiple AI agents</title>
+<title>Skyforge: delegate your prompts across multiple AI agents</title>
 <style>
   :root {
     color-scheme: light only;
@@ -141,17 +141,13 @@
     font-feature-settings: normal;
   }
 
-  /* ---------- asterism section break ---------- */
+  /* ---------- anvil section break ---------- */
   .break {
-    text-align: center;
     border: 0;
-    color: var(--faint);
+    height: 27px;
     margin: 3.2rem 0;
-    font-size: 1.1rem;
-    letter-spacing: .6em;
-    text-indent: .6em;
+    background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2060%2034%27%3E%3Cpath%20fill%3D%27%239a9a9a%27%20d%3D%27M2%2011%2016%207%2057%207%2057%2014%2039%2014%2039%2022%2048%2022%2051%2030%2013%2030%2016%2022%2025%2022%2025%2014%2016%2014Z%27%2F%3E%3C%2Fsvg%3E") no-repeat center / auto 100%;
   }
-  .break::before { content: "\2042"; } /* ⁂ asterism */
 
   /* ---------- figure: the board ---------- */
   figure {
@@ -226,7 +222,7 @@
     font-weight: 700;
     font-size: 1.18rem;
   }
-  ol.loop h3::after { content: " — "; color: var(--muted); font-weight: 400; }
+  ol.loop h3::after { content: ": "; color: var(--muted); font-weight: 400; }
   ol.loop p { display: inline; text-align: left; }
 
   /* ---------- phrase list ---------- */
@@ -331,17 +327,17 @@
       <span class="flourish"></span>
     </div>
     <p class="sub">Delegate your prompts across multiple AI agents</p>
-    <p class="fleuron"><svg class="forge" viewBox="0 0 48 32" fill="currentColor" role="img" aria-label="Anvil"><path d="M2 12 13 8 46 8 46 13 34 13 31 16 29 16 29 20 39 20 42 29 6 29 9 20 19 20 19 16 13 13Z"/></svg></p>
+    <p class="fleuron"><svg class="forge" viewBox="0 0 60 34" fill="currentColor" role="img" aria-label="Anvil"><path d="M2 11 16 7 57 7 57 14 39 14 39 22 48 22 51 30 13 30 16 22 25 22 25 14 16 14Z"/></svg></p>
     <p class="epigraph">Work from a single chat window while one manager delegates your prompts to a floor of AI sub-agents.</p>
   </header>
 
   <section>
     <p class="opening">
-      Tired of juggling multiple CLI windows? Skyforge lets you work from a
-      single chat window while your prompts get delegated to sub-agents, all
-      overseen by one manager — a simpler way to get work done than switching
-      windows every few seconds. Just keep feeding the manager tasks, and it
-      delegates to sub-agents like a factory floor.
+      Skyforge lets you work from a single chat window while your prompts get
+      delegated to sub-agents, all overseen by one manager, making it a simpler
+      way to get work done rather than switching windows every few seconds. Just
+      keep feeding the manager tasks, and it delegates to sub-agents like a
+      factory floor.
     </p>
     <p>
       Nothing about it is loud. There are no dashboards to babysit and no
@@ -361,7 +357,7 @@
     <p>
       The <strong>Manager</strong> is the main conversation. It owns intake,
       breaks each request into tasks, dispatches them, watches for completions,
-      and reports back. It never does the task work itself — it only
+      and reports back. It never does the task work itself; it only
       coordinates, so nothing moves without your approval.
     </p>
     <p>
@@ -374,7 +370,7 @@
     <p>
       The <strong>Board</strong> is a durable ledger kept in your repository at
       <code>.skyforge/board.json</code>. Every change flows through a single
-      command, and it survives a restart — so the shop always remembers exactly
+      command, and it survives a restart, so the shop always remembers exactly
       where it stood.
     </p>
   </section>
@@ -406,7 +402,7 @@
     <h2>Installing</h2>
     <p>
       Skyforge is a Claude Code skill. The simplest way to add it: in Claude
-      Code — or any coding agent — hand over the repository and let it do the
+      Code, or any coding agent, hand over the repository and let it do the
       work for you.
     </p>
     <div class="say">
@@ -435,7 +431,7 @@
     </p>
     <ol class="loop">
       <li><h3>Hand over a task</h3><p>Say <em>“skyforge”</em> and describe the work. The board initialises itself, once, in the current repository.</p></li>
-      <li><h3>Approve the plan</h3><p>Skyforge proposes a breakdown — which tasks edit files, which only read, and what depends on what — then stops. Nothing is dispatched without your yes.</p></li>
+      <li><h3>Approve the plan</h3><p>Skyforge proposes a breakdown (which tasks edit files, which only read, and what depends on what), then stops. Nothing is dispatched without your yes.</p></li>
       <li><h3>Watch it dispatch</h3><p>Approved tasks launch as concurrent workers, and anything that writes files is given its own isolated worktree.</p></li>
       <li><h3>Be reported to</h3><p>Each worker finishes with a report; the board updates and you receive a single line, not a wall of text.</p></li>
       <li><h3>Ask for the picture</h3><p>Say <em>“how’s the factory?”</em> for a grouped status: what runs, what is blocked, and what is ready for your review.</p></li>
@@ -464,7 +460,7 @@
   </section>
 
   <div class="colophon">
-    Skyforge — a virtual dev-shop manager.<br>
+    Skyforge, a virtual dev-shop manager.<br>
     <span class="mono">version 0.1.0</span>
   </div>
 

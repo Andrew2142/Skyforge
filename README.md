@@ -2,7 +2,7 @@
 
 **A Claude Code skill that delegates your prompts across multiple AI agents.**
 
-Tired of juggling multiple CLI windows? Skyforge lets you work from a single chat window while your prompts get delegated to sub-agents, all overseen by one manager, making it a simpler way to get work done rather than switching windows every few seconds. Just keep feeding the manager tasks, and it delegates to sub-agents like a factory floor.
+Skyforge lets you work from a single chat window while your prompts get delegated to sub-agents, all overseen by one manager, making it a simpler way to get work done rather than switching windows every few seconds. Just keep feeding the manager tasks, and it delegates to sub-agents like a factory floor.
 
 > You speak in tasks. It runs the shop, and answers in a single line when the work is done.
 
@@ -10,14 +10,14 @@ Tired of juggling multiple CLI windows? Skyforge lets you work from a single cha
 
 Three roles, one calm loop:
 
-- **Manager** — the main conversation. Owns intake, task breakdown, dispatch,
+- **Manager**: the main conversation. Owns intake, task breakdown, dispatch,
   monitoring, and reporting. It never does the task work itself; it only
   coordinates, so nothing moves without your approval.
-- **Workers** — background agents (`skyforge-worker`), one task apiece, carried
+- **Workers**: background agents (`skyforge-worker`), one task apiece, carried
   end to end and returned as a structured completion report. Any task that
   writes files runs inside its own isolated git worktree, so parallel workers
   never clobber each other or your working tree.
-- **Board** — a durable ledger at `.skyforge/board.json` in the current
+- **Board**: a durable ledger at `.skyforge/board.json` in the current
   repository, written only through `scripts/board.mjs`. It survives restarts, so
   the shop always remembers where it stood.
 
@@ -30,7 +30,7 @@ Every task lives in exactly one of five states: `queued`, `running`, `done`,
 
 > Please install this skill: https://github.com/Andrew2142/Skyforge
 
-The agent reads this page and runs the one-line installer below — that's it.
+The agent reads this page and runs the one-line installer below. That's it.
 
 **Or run it yourself:**
 
@@ -56,7 +56,7 @@ cp agents/skyforge-worker.md ~/.claude/agents/
 
 ## Use
 
-Trigger it in natural language — the manager listens for intent, not exact words:
+Trigger it in natural language. The manager listens for intent, not exact words:
 
 - `skyforge`
 - `delegate this to the team`
@@ -73,7 +73,7 @@ grouped report of what's running, blocked, and ready for review.
 install.sh                one-line installer (clones + copies into ~/.claude)
 SKILL.md                  the skill definition (the manager's operating loop)
 references/protocol.md    board schema, worker-prompt template, report format, edge cases
-scripts/board.mjs         the ledger CLI — the only writer of .skyforge/board.json
+scripts/board.mjs         the ledger CLI, the only writer of .skyforge/board.json
 agents/skyforge-worker.md the background worker subagent + its completion-report format
 docs/index.html           a standalone landing page describing the skill
 ```
@@ -92,4 +92,4 @@ docs/index.html           a standalone landing page describing the skill
 | `node board.mjs note <id> "text"` | Append text to the task's brief file |
 | `node board.mjs report` | Grouped human-readable status |
 
-Requires Node.js (uses only built-in modules — no dependencies).
+Requires Node.js (uses only built-in modules, no dependencies).
