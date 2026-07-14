@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*{margin:0;padding:0;box-sizing:border-box}img{max-width:100%}</style>
+<title>Skyforge — the calm dev-shop manager</title>
+<style>
+  :root {
+    color-scheme: light only;
+    --paper:  #ffffff;
+    --ink:    #1a1a1a;
+    --muted:  #6a6a6a;
+    --faint:  #9a9a9a;
+    --rule:   #e0e0e0;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+             Charter, "Bitstream Charter", Georgia, "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.18rem;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-kerning: normal;
+    font-feature-settings: "liga" 1, "onum" 1, "kern" 1;
+  }
+
+  .book {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 3rem 1.75rem 6rem;
+  }
+
+  /* ---------- title page ---------- */
+  .titlepage {
+    text-align: center;
+    padding: 3rem 0 3.5rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 3.5rem;
+  }
+  .titlepage p { text-align: center; hyphens: none; margin: 0; }
+  .titlepage .kicker {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 2.4rem;
+  }
+  .titlemark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(1rem, 4vw, 1.8rem);
+  }
+  .titlemark .flourish {
+    height: 1px;
+    width: clamp(1.5rem, 9vw, 4.5rem);
+    background: var(--ink);
+    opacity: .45;
+  }
+  .titlepage h1 {
+    font-weight: 400;
+    font-size: clamp(3.4rem, 2.2rem + 5vw, 5.4rem);
+    line-height: 1;
+    letter-spacing: .015em;
+    margin: 0;
+  }
+  .titlepage .sub {
+    font-style: italic;
+    font-size: 1.3rem;
+    color: var(--muted);
+    margin: 1.3rem 0 0;
+  }
+  .titlepage .fleuron {
+    line-height: 0;
+    margin: 2.2rem 0 1.5rem;
+  }
+  .titlepage .forge {
+    width: clamp(40px, 9vw, 48px);
+    height: auto;
+    color: var(--muted);
+  }
+  .titlepage .epigraph {
+    font-style: italic;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--ink);
+    max-width: 28rem;
+    margin: 0 auto;
+    text-wrap: balance;
+  }
+
+  /* ---------- prose ---------- */
+  h2 {
+    font-weight: 400;
+    font-variant: small-caps;
+    letter-spacing: .08em;
+    font-size: 1.5rem;
+    text-align: center;
+    margin: 0 0 1.6rem;
+  }
+
+  p {
+    margin: 0 0 1.4rem;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+  }
+  p:last-child { margin-bottom: 0; }
+
+  section { margin-bottom: 1rem; }
+
+  /* drop cap on the opening paragraph */
+  .opening::first-letter {
+    font-size: 3.9rem;
+    line-height: .82;
+    float: left;
+    padding: .28rem .12em .1rem 0;
+    font-weight: 400;
+  }
+
+  em { font-style: italic; }
+  strong { font-weight: 700; }
+
+  code, .mono {
+    font-family: var(--mono);
+    font-size: .84em;
+    font-feature-settings: normal;
+  }
+
+  /* ---------- asterism section break ---------- */
+  .break {
+    text-align: center;
+    border: 0;
+    color: var(--faint);
+    margin: 3.2rem 0;
+    font-size: 1.1rem;
+    letter-spacing: .6em;
+    text-indent: .6em;
+  }
+  .break::before { content: "\2042"; } /* ⁂ asterism */
+
+  /* ---------- figure: the board ---------- */
+  figure {
+    margin: 2.4rem 0;
+    padding: 0;
+  }
+  .board {
+    border: 1px solid var(--ink);
+    padding: 1.1rem 1.3rem 1.3rem;
+    font-family: var(--mono);
+    font-size: .8rem;
+    line-height: 1.5;
+  }
+  .board .bhead {
+    display: flex;
+    justify-content: space-between;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-size: .68rem;
+    padding-bottom: .8rem;
+    margin-bottom: .7rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .board .brow {
+    display: grid;
+    grid-template-columns: 3.6rem 1fr auto;
+    gap: .8rem;
+    align-items: baseline;
+    padding: .38rem 0;
+  }
+  .board .brow + .brow { border-top: 1px dotted var(--rule); }
+  .board .bid { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .board .btitle { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .bstate { text-transform: uppercase; letter-spacing: .08em; color: var(--ink); }
+  figcaption {
+    text-align: center;
+    font-style: italic;
+    font-size: .95rem;
+    color: var(--muted);
+    margin-top: 1rem;
+  }
+  figcaption b { font-style: normal; font-weight: 700; color: var(--ink); }
+
+  /* ---------- the loop: ordered list ---------- */
+  ol.loop {
+    list-style: none;
+    counter-reset: step;
+    margin: 0;
+    padding: 0;
+  }
+  ol.loop > li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 3rem;
+    margin-bottom: 1.5rem;
+  }
+  ol.loop > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2rem;
+    text-align: right;
+    font-family: var(--mono);
+    font-size: .95rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  ol.loop h3 {
+    display: inline;
+    font-weight: 700;
+    font-size: 1.18rem;
+  }
+  ol.loop h3::after { content: " — "; color: var(--muted); font-weight: 400; }
+  ol.loop p { display: inline; text-align: left; }
+
+  /* ---------- phrase list ---------- */
+  ul.phrases {
+    list-style: none;
+    margin: 1.4rem 0 0;
+    padding: 0;
+    text-align: center;
+  }
+  ul.phrases li {
+    font-style: italic;
+    font-size: 1.22rem;
+    margin: .55rem 0;
+    color: var(--ink);
+  }
+  ul.phrases li::before,
+  ul.phrases li::after { color: var(--faint); }
+  ul.phrases li::before { content: "\201C"; }
+  ul.phrases li::after  { content: "\201D"; }
+
+  .states {
+    text-align: center;
+    font-family: var(--mono);
+    font-size: .9rem;
+    letter-spacing: .08em;
+    color: var(--ink);
+    margin-top: 1rem;
+  }
+  .states span { color: var(--faint); padding: 0 .3rem; }
+
+  /* ---------- colophon ---------- */
+  .colophon {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    text-align: center;
+    font-style: italic;
+    font-size: .95rem;
+    color: var(--muted);
+  }
+  .colophon .mono { font-style: normal; font-size: .78rem; letter-spacing: .05em; color: var(--faint); }
+
+  @media (max-width: 32rem) {
+    body { font-size: 1.08rem; }
+    .book { padding: 3rem 1.25rem 4rem; }
+    .board { font-size: .74rem; }
+    .board .brow { grid-template-columns: 3rem 1fr auto; }
+  }
+</style>
+
+</head>
+<body>
+<div class="book">
+
+  <header class="titlepage">
+    <p class="kicker">A Claude Code Skill</p>
+    <div class="titlemark">
+      <span class="flourish"></span>
+      <h1>Skyforge</h1>
+      <span class="flourish"></span>
+    </div>
+    <p class="sub">The calm dev-shop manager</p>
+    <p class="fleuron"><svg class="forge" viewBox="0 0 48 32" fill="currentColor" role="img" aria-label="Anvil"><path d="M2 12 13 8 46 8 46 13 34 13 31 16 29 16 29 20 39 20 42 29 6 29 9 20 19 20 19 16 13 13Z"/></svg></p>
+    <p class="epigraph">You speak in tasks. It runs the shop, and answers in a single line when the work is done.</p>
+  </header>
+
+  <section>
+    <p class="opening">
+      Skyforge turns your assistant into the manager of a small shop of AI
+      workers. You hand over the work, and instead of doing it in the chat, it
+      breaks the work into tasks, dispatches each one to a background worker,
+      and keeps the whole shop on a durable board you can trust. The workers
+      run while you keep feeding in more — the factory never has to drain
+      before it will take the next request.
+    </p>
+    <p>
+      Nothing about it is loud. There are no dashboards to babysit and no
+      progress bars to watch. You speak in tasks; it answers in a single line
+      when each one is done, and gives you the whole picture only when you ask
+      for it.
+    </p>
+  </section>
+
+  <hr class="break">
+
+  <section>
+    <h2>What it does</h2>
+    <p>
+      The work is divided among three roles, and each stays firmly in its lane.
+    </p>
+    <p>
+      The <strong>Manager</strong> is the main conversation. It owns intake,
+      breaks each request into tasks, dispatches them, watches for completions,
+      and reports back. It never does the task work itself — it only
+      coordinates, so nothing moves without your approval.
+    </p>
+    <p>
+      The <strong>Workers</strong> are background agents, one task apiece,
+      carried end to end and returned as a structured report. Any task that
+      writes files runs inside its own isolated <em>worktree</em>, so several
+      workers can labour at once without ever clobbering each other or your
+      working tree.
+    </p>
+    <p>
+      The <strong>Board</strong> is a durable ledger kept in your repository at
+      <code>.skyforge/board.json</code>. Every change flows through a single
+      command, and it survives a restart — so the shop always remembers exactly
+      where it stood.
+    </p>
+  </section>
+
+  <hr class="break">
+
+  <section>
+    <h2>The board</h2>
+    <p>
+      At any moment the board holds every task and the single state it is in.
+      A glance tells you what is running, what is finished, and what has
+      stalled waiting on you.
+    </p>
+    <figure>
+      <div class="board" role="img" aria-label="A task board with four tasks in running, done, queued, and blocked states">
+        <div class="bhead"><span>skyforge &middot; board</span><span>4 tasks</span></div>
+        <div class="brow"><span class="bid">T-001</span><span class="btitle">Add rate limiting to /login</span><span class="bstate">running</span></div>
+        <div class="brow"><span class="bid">T-002</span><span class="btitle">Audit dependency licenses</span><span class="bstate">done</span></div>
+        <div class="brow"><span class="bid">T-003</span><span class="btitle">Draft the 0.9 release notes</span><span class="bstate">queued</span></div>
+        <div class="brow"><span class="bid">T-004</span><span class="btitle">Fix the flaky checkout test</span><span class="bstate">blocked</span></div>
+      </div>
+      <figcaption><b>Figure 1.</b> Four tasks, four states, one ledger.</figcaption>
+    </figure>
+  </section>
+
+  <hr class="break">
+
+  <section>
+    <h2>How to use it</h2>
+    <p>
+      One loop runs the whole shop. The first two steps wait on your word; the
+      rest turn on their own.
+    </p>
+    <ol class="loop">
+      <li><h3>Hand over a task</h3><p>Say <em>“skyforge”</em> and describe the work. The board initialises itself, once, in the current repository.</p></li>
+      <li><h3>Approve the plan</h3><p>Skyforge proposes a breakdown — which tasks edit files, which only read, and what depends on what — then stops. Nothing is dispatched without your yes.</p></li>
+      <li><h3>Watch it dispatch</h3><p>Approved tasks launch as concurrent workers, and anything that writes files is given its own isolated worktree.</p></li>
+      <li><h3>Be reported to</h3><p>Each worker finishes with a report; the board updates and you receive a single line, not a wall of text.</p></li>
+      <li><h3>Ask for the picture</h3><p>Say <em>“how’s the factory?”</em> for a grouped status: what runs, what is blocked, and what is ready for your review.</p></li>
+      <li><h3>Keep feeding</h3><p>Drop in new tasks whenever you like. Workers already in flight carry on untouched; the loop simply widens to hold more.</p></li>
+    </ol>
+  </section>
+
+  <hr class="break">
+
+  <section>
+    <h2>To begin</h2>
+    <p>
+      Any of these will wake the shop. Speak plainly; the manager is listening
+      for the intent, not the exact words.
+    </p>
+    <ul class="phrases">
+      <li>skyforge</li>
+      <li>delegate this to the team</li>
+      <li>spin up the factory</li>
+      <li>how’s the factory doing?</li>
+    </ul>
+    <p style="text-align:center; margin-top:2rem;">
+      And every task, from first breath to last, lives in one of five states:
+    </p>
+    <p class="states">queued<span>·</span>running<span>·</span>done<span>·</span>blocked<span>·</span>failed</p>
+  </section>
+
+  <div class="colophon">
+    Skyforge — a virtual dev-shop manager.<br>
+    <span class="mono">version 0.1.0</span>
+  </div>
+
+</div>
+</body>
+</html>
