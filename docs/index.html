@@ -362,10 +362,11 @@
     </p>
     <p>
       The <strong>Workers</strong> are background agents, one task apiece,
-      carried end to end and returned as a structured report. Any task that
-      writes files runs inside its own isolated <em>worktree</em>, so several
-      workers can labour at once without ever clobbering each other or your
-      working tree.
+      carried end to end and returned as a structured report. Before starting a
+      worker, the manager checks what the running workers are already touching:
+      if a new task would edit the same files as one in flight, it waits in the
+      queue; if not, it starts right away. Work runs in parallel wherever it
+      safely can, and only lines up where files would collide.
     </p>
     <p>
       The <strong>Board</strong> is a durable ledger kept in your repository at
@@ -432,7 +433,7 @@
     <ol class="loop">
       <li><h3>Hand over a task</h3><p>Say <em>“skyforge”</em> and describe the work. The board initialises itself, once, in the current repository.</p></li>
       <li><h3>Approve the plan</h3><p>Skyforge proposes a breakdown (which tasks edit files, which only read, and what depends on what), then stops. Nothing is dispatched without your yes.</p></li>
-      <li><h3>Watch it dispatch</h3><p>Approved tasks launch as concurrent workers, and anything that writes files is given its own isolated worktree.</p></li>
+      <li><h3>Watch it dispatch</h3><p>Approved tasks start as background workers. The manager runs them in parallel, but queues any task that would touch the same files as one already in flight.</p></li>
       <li><h3>Be reported to</h3><p>Each worker finishes with a report; the board updates and you receive a single line, not a wall of text.</p></li>
       <li><h3>Ask for the picture</h3><p>Say <em>“how’s the factory?”</em> for a grouped status: what runs, what is blocked, and what is ready for your review.</p></li>
       <li><h3>Keep feeding</h3><p>Drop in new tasks whenever you like. Workers already in flight carry on untouched; the loop simply widens to hold more.</p></li>

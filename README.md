@@ -14,9 +14,11 @@ Three roles, one calm loop:
   monitoring, and reporting. It never does the task work itself; it only
   coordinates, so nothing moves without your approval.
 - **Workers**: background agents (`skyforge-worker`), one task apiece, carried
-  end to end and returned as a structured completion report. Any task that
-  writes files runs inside its own isolated git worktree, so parallel workers
-  never clobber each other or your working tree.
+  end to end and returned as a structured completion report. Before starting a
+  worker, the manager checks what the running workers are touching: if a new
+  task would edit the same files as one already in flight, it waits in the
+  queue; otherwise it starts immediately. Work runs in parallel wherever it
+  safely can, and serialises only where files would collide.
 - **Board**: a durable ledger at `.skyforge/board.json` in the current
   repository, written only through `scripts/board.mjs`. It survives restarts, so
   the shop always remembers where it stood.
