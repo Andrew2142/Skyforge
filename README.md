@@ -14,11 +14,11 @@ Three roles, one calm loop:
   monitoring, and reporting. It never does the task work itself; it only
   coordinates, so nothing moves without your approval.
 - **Workers**: background agents (`skyforge-worker`), one task apiece, carried
-  end to end and returned as a structured completion report. Before starting a
-  worker, the manager checks what the running workers are touching: if a new
-  task would edit the same files as one already in flight, it waits in the
-  queue; otherwise it starts immediately. Work runs in parallel wherever it
-  safely can, and serialises only where files would collide.
+  end to end and returned as a structured completion report. When you spin up
+  Skyforge you choose how they share the repository: **guardrail** mode queues
+  any task whose files overlap a running task (workers edit the tree directly),
+  while **worktree** mode gives each file-editing task its own isolated git
+  worktree, so nothing ever collides and you review each diff before it lands.
 - **Board**: a durable ledger at `.skyforge/board.json` in the current
   repository, written only through `scripts/board.mjs`. It survives restarts, so
   the shop always remembers where it stood.
@@ -86,9 +86,11 @@ docs/index.html           a standalone landing page describing the skill
 
 | Command | Purpose |
 |---|---|
-| `node board.mjs init` | Create `.skyforge/board.json` + `tasks/` (idempotent) |
-| `node board.mjs add --title "..." [--parent T-00N] [--brief "..."]` | Add a task; prints its id |
-| `node board.mjs set <id> --status <s> [--agent <id>] [--summary "..."]` | Update a task |
+| `node board.mjs init [--mode worktree\|guardrail]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets the mode |
+| `node board.mjs mode [--set worktree\|guardrail]` | Show or change the concurrency mode |
+| `node board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "a.ts,src/api"]` | Add a task; prints its id |
+| `node board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."]` | Update a task |
+| `node board.mjs ready` | Queued tasks safe to dispatch now (mode-aware) |
 | `node board.mjs list [--status <s>]` | Compact task table |
 | `node board.mjs get <id>` | Full JSON for one task |
 | `node board.mjs note <id> "text"` | Append text to the task's brief file |

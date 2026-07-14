@@ -9,6 +9,7 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
   "version": 1,
   "seq": 3,
   "createdAt": "2026-07-13T11:00:00.000Z",
+  "mode": "guardrail",
   "tasks": [
     {
       "id": "T-001",
@@ -17,6 +18,7 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
       "agentId": "ad7f0c42fc1862060",
       "status": "running",
       "parent": null,
+      "files": ["src/api/login.ts"],
       "createdAt": "2026-07-13T11:00:01.000Z",
       "updatedAt": "2026-07-13T11:02:10.000Z",
       "resultSummary": ""
@@ -29,7 +31,19 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
 - `agentId` is the Agent-tool id of the worker — used to continue a worker via SendMessage.
 - `status` is one of `queued | running | done | failed | blocked`.
 - `parent` groups subtasks split from one larger request.
+- `mode` (board-level) is `worktree` or `guardrail`; see **Concurrency modes** below. A board written before modes existed is read as `worktree`.
+- `files` are the paths a task declares it will create or edit; used for overlap gating in `guardrail` mode, ignored in `worktree` mode.
 - Full briefs and final reports live in `.skyforge/tasks/<id>.md`, not in the JSON (keeps the JSON small and the briefs readable).
+
+## Concurrency modes
+
+The board's `mode` decides how the manager dispatches file-editing work.
+
+**`worktree`**: each file-editing task is launched with `isolation: "worktree"`, editing an isolated copy of the repo. Workers never collide, changes stay quarantined for review, and nothing is auto-merged. `board.mjs ready` returns every queued task (the Agent tool's own concurrency cap is the only limiter).
+
+**`guardrail`**: workers edit the working tree directly, so the manager must stop two workers writing the same file at once. Each file-editing task declares its target paths (`--files`). `board.mjs ready` returns a safe batch: it walks the queue in order and includes a task only if its files overlap neither a `running` task nor another task already chosen in the batch. Overlap is by path: two paths conflict when equal, or when one is a directory containing the other (`src/api` conflicts with `src/api/login.ts`). Read-only tasks declare no files and are always safe. When a running task completes it frees its files; re-run `ready` to release newly-safe queued tasks.
+
+Set or read the mode with `board.mjs mode [--set <mode>]`.
 
 ## Worker-prompt template
 
@@ -55,8 +69,9 @@ preamble.
 ```
 
 Launch options:
-- File-editing task → Agent tool with `isolation: "worktree"`.
-- Read-only research task → no isolation.
+- `worktree` mode, file-editing task → Agent tool with `isolation: "worktree"`.
+- `guardrail` mode, file-editing task → no isolation; the worker edits the working tree, so dispatch only when `board.mjs ready` clears it, and tell the worker in its brief to stay strictly within its declared files.
+- Read-only research task → no isolation, in either mode.
 - Always `subagent_type: "skyforge-worker"`.
 - Launch independent workers in one message (concurrent). Concurrency is capped by the Agent tool; excess workers queue — leave those board entries `queued` and note it to the user.
 
@@ -90,6 +105,8 @@ Map to the board:
 
 **Concurrency backpressure.** If more tasks are approved than can run at once, dispatch what fits, leave the rest `queued`, and tell the user how many are waiting. As workers finish, dispatch queued tasks.
 
-**Worktree review.** A worktree task's changes stay in an isolated worktree until the user reviews. Report the diff summary and the worktree location; never merge without approval.
+**Worktree review (`worktree` mode).** A worktree task's changes stay in an isolated worktree until the user reviews. Report the diff summary and the worktree location; never merge without approval.
+
+**File conflict (`guardrail` mode).** When `board.mjs ready` returns nothing but tasks are queued, every queued task overlaps running work — expected backpressure. Wait for a running task to finish, then re-run `ready`. If two approved tasks fundamentally need the same files, they cannot run in parallel in guardrail mode; run them in sequence, or suggest worktree mode.
 
 **Multiple projects.** The board is per-cwd (`.skyforge/` in the working directory). Running the factory from a different repo uses a separate board — this is intentional.
