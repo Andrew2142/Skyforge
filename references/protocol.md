@@ -10,6 +10,7 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
   "seq": 3,
   "createdAt": "2026-07-13T11:00:00.000Z",
   "mode": "guardrail",
+  "auto": false,
   "tasks": [
     {
       "id": "T-001",
@@ -32,6 +33,7 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
 - `status` is one of `queued | running | done | failed | blocked`.
 - `parent` groups subtasks split from one larger request.
 - `mode` (board-level) is `worktree` or `guardrail`; see **Concurrency modes** below. A board written before modes existed is read as `worktree`.
+- `auto` (board-level): when true, the manager dispatches without waiting for approval. Set at init (`--auto on`) or with `board.mjs auto --set on|off`.
 - `files` are the paths a task declares it will create or edit; used for overlap gating in `guardrail` mode, ignored in `worktree` mode.
 - Full briefs and final reports live in `.skyforge/tasks/<id>.md`, not in the JSON (keeps the JSON small and the briefs readable).
 

@@ -2,8 +2,9 @@
 // board.mjs — the Skyforge factory ledger.
 // Owns every read/write of .skyforge/board.json so the JSON is never hand-corrupted.
 // Usage:
-//   node board.mjs init [--mode worktree|guardrail]
+//   node board.mjs init [--mode worktree|guardrail] [--auto on|off]
 //   node board.mjs mode [--set worktree|guardrail]
+//   node board.mjs auto [--set on|off]
 //   node board.mjs add --title "..." [--assignee skyforge-worker] [--parent T-003] [--brief "..."] [--files "src/a.ts,src/api"]
 //   node board.mjs set <id> --status running [--agent <agentId>] [--summary "..."] [--title "..."] [--files "..."]
 //   node board.mjs list [--status running]
@@ -31,8 +32,13 @@ function nowISO() {
   return new Date().toISOString();
 }
 
-function newBoard(mode) {
-  return { version: 1, seq: 0, createdAt: nowISO(), mode: mode || 'worktree', tasks: [] };
+function truthy(v) {
+  if (v === true) return true;
+  return ['on', 'true', 'yes', '1'].includes(String(v).toLowerCase());
+}
+
+function newBoard(mode, auto) {
+  return { version: 1, seq: 0, createdAt: nowISO(), mode: mode || 'worktree', auto: !!auto, tasks: [] };
 }
 
 function ensureRoot() {
@@ -45,6 +51,7 @@ function load() {
   try {
     const b = JSON.parse(readFileSync(BOARD, 'utf8'));
     if (!b.mode) b.mode = 'worktree'; // tolerate pre-mode boards
+    if (b.auto === undefined) b.auto = false;
     return b;
   } catch (e) {
     fail(`board.json is not valid JSON: ${e.message}`);
@@ -110,11 +117,13 @@ function cmdInit(flags) {
   ensureRoot();
   const mode = flags.mode && flags.mode !== true ? String(flags.mode) : 'worktree';
   if (!MODES.includes(mode)) fail(`mode must be one of: ${MODES.join(', ')}`);
+  const auto = 'auto' in flags ? truthy(flags.auto) : false;
   if (!existsSync(BOARD)) {
-    save(newBoard(mode));
-    console.log(`Initialised ledger at ${BOARD} (mode: ${mode})`);
+    save(newBoard(mode, auto));
+    console.log(`Initialised ledger at ${BOARD} (mode: ${mode}, auto: ${auto ? 'on' : 'off'})`);
   } else {
-    console.log(`Ledger already exists at ${BOARD} (mode: ${load().mode})`);
+    const b = load();
+    console.log(`Ledger already exists at ${BOARD} (mode: ${b.mode}, auto: ${b.auto ? 'on' : 'off'})`);
   }
 }
 
@@ -128,6 +137,17 @@ function cmdMode(flags) {
     console.log(`mode set to ${m}`);
   } else {
     console.log(board.mode);
+  }
+}
+
+function cmdAuto(flags) {
+  const board = load();
+  if ('set' in flags) {
+    board.auto = truthy(flags.set);
+    save(board);
+    console.log(`auto ${board.auto ? 'on' : 'off'}`);
+  } else {
+    console.log(board.auto ? 'on' : 'off');
   }
 }
 
@@ -253,7 +273,7 @@ function cmdReport() {
   for (const t of board.tasks) (by[t.status] || (by[t.status] = [])).push(t);
 
   const total = board.tasks.length;
-  console.log(`Skyforge factory — ${total} task${total === 1 ? '' : 's'}  ·  mode: ${board.mode}`);
+  console.log(`Skyforge factory — ${total} task${total === 1 ? '' : 's'}  ·  mode: ${board.mode}  ·  auto: ${board.auto ? 'on' : 'off'}`);
   console.log('='.repeat(48));
   const order = ['running', 'blocked', 'queued', 'failed', 'done'];
   const icon = { running: '🔧', blocked: '⛔', queued: '⏳', failed: '❌', done: '✅' };
@@ -281,6 +301,7 @@ const { positionals, flags } = parseArgs(rest);
 switch (cmd) {
   case 'init': cmdInit(flags); break;
   case 'mode': cmdMode(flags); break;
+  case 'auto': cmdAuto(flags); break;
   case 'add': cmdAdd(flags); break;
   case 'set': cmdSet(positionals, flags); break;
   case 'list': cmdList(flags); break;
@@ -289,7 +310,7 @@ switch (cmd) {
   case 'note': cmdNote(positionals); break;
   case 'report': cmdReport(); break;
   default:
-    console.log('board.mjs commands: init | mode | add | set | list | get | ready | note | report');
+    console.log('board.mjs commands: init | mode | auto | add | set | list | get | ready | note | report');
     if (cmd) fail(`unknown command "${cmd}"`);
 }
 

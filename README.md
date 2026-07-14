@@ -65,9 +65,15 @@ Trigger it in natural language. The manager listens for intent, not exact words:
 - `spin up the factory`
 - `how's the factory doing?`
 
-The manager proposes a task breakdown and **waits for your approval** before
-dispatching anything. Ask for status any time (`how's the factory?`) to get a
-grouped report of what's running, blocked, and ready for review.
+The **first** time you spin it up in a chat, Skyforge asks two quick toggles:
+
+- **Auto mode** — on: dispatch automatically without waiting for your approval; off: propose a breakdown and wait for your go-ahead first.
+- **Worktree isolation** — on: each file-editing task runs in its own git worktree; off: guardrail mode (workers edit the tree directly, with file-overlap queueing).
+
+After that it stays engaged for the rest of the session — every task you hand over
+is delegated to a worker, no need to remind it. Ask for status any time
+(`how's the factory?`) to get a grouped report of what's running, blocked, and
+ready for review.
 
 ## Repository layout
 

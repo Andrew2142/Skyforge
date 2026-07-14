@@ -433,8 +433,8 @@
       rest turn on their own.
     </p>
     <ol class="loop">
-      <li><h3>Hand over a task</h3><p>Say <em>“skyforge”</em> and describe the work. The board initialises itself, once, in the current repository.</p></li>
-      <li><h3>Approve the plan</h3><p>Skyforge proposes a breakdown (which tasks edit files, which only read, and what depends on what), then stops. Nothing is dispatched without your yes.</p></li>
+      <li><h3>Hand over a task</h3><p>Say <em>“skyforge”</em> and describe the work. The first time, it asks two quick toggles (auto mode, and worktree isolation), then initialises the board in the current repository.</p></li>
+      <li><h3>Approve the plan</h3><p>Skyforge proposes a breakdown (which tasks edit files, which only read, and what depends on what), then stops for your yes. With auto mode on, it skips this and dispatches straight away.</p></li>
       <li><h3>Watch it dispatch</h3><p>Approved tasks start as background workers and run in parallel, held back only where they would touch the same files (guardrail mode) or given their own isolated worktrees (worktree mode).</p></li>
       <li><h3>Be reported to</h3><p>Each worker finishes with a report; the board updates and you receive a single line, not a wall of text.</p></li>
       <li><h3>Ask for the picture</h3><p>Say <em>“how’s the factory?”</em> for a grouped status: what runs, what is blocked, and what is ready for your review.</p></li>
