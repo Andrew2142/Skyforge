@@ -257,6 +257,48 @@
   }
   .states span { color: var(--faint); padding: 0 .3rem; }
 
+  /* ---------- install ---------- */
+  .say {
+    border: 1px solid var(--ink);
+    padding: 1.3rem 1.4rem;
+    margin: 1.6rem 0;
+    text-align: center;
+  }
+  .say .tag {
+    display: block;
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: .85rem;
+  }
+  .say .line {
+    display: block;
+    font-size: 1.2rem;
+    font-style: italic;
+    line-height: 1.4;
+  }
+  .say .url {
+    display: block;
+    margin-top: .6rem;
+    font-family: var(--mono);
+    font-style: normal;
+    font-size: .82rem;
+    color: var(--ink);
+    word-break: break-all;
+  }
+  pre.shell {
+    font-family: var(--mono);
+    font-size: .8rem;
+    line-height: 1.55;
+    border: 1px solid var(--rule);
+    padding: .9rem 1.1rem;
+    margin: 1.3rem 0;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+
   /* ---------- colophon ---------- */
   .colophon {
     margin-top: 4rem;
@@ -357,6 +399,31 @@
       </div>
       <figcaption><b>Figure 1.</b> Four tasks, four states, one ledger.</figcaption>
     </figure>
+  </section>
+
+  <hr class="break">
+
+  <section>
+    <h2>Installing</h2>
+    <p>
+      Skyforge is a Claude Code skill. The simplest way to add it: in Claude
+      Code — or any coding agent — hand over the repository and let it do the
+      work for you.
+    </p>
+    <div class="say">
+      <span class="tag">Say this to your assistant</span>
+      <span class="line">Please install this skill:<span class="url">https://github.com/Andrew2142/Skyforge</span></span>
+    </div>
+    <p>
+      It reads the repository and runs the one-line installer on your behalf. Or
+      run it yourself:
+    </p>
+    <pre class="shell">curl -fsSL https://raw.githubusercontent.com/Andrew2142/Skyforge/main/install.sh | bash</pre>
+    <p>
+      The installer places the skill under <code>~/.claude/skills/skyforge</code>
+      and its worker under <code>~/.claude/agents</code>. Start a fresh session,
+      and the shop is open.
+    </p>
   </section>
 
   <hr class="break">
