@@ -5,11 +5,11 @@
 //   node board.mjs init [--mode worktree|guardrail] [--auto on|off]
 //   node board.mjs mode [--set worktree|guardrail]
 //   node board.mjs auto [--set on|off]
-//   node board.mjs add --title "..." [--assignee skyforge-worker] [--parent T-003] [--brief "..."] [--files "src/a.ts,src/api"]
-//   node board.mjs set <id> --status running [--agent <agentId>] [--summary "..."] [--title "..."] [--files "..."]
+//   node board.mjs add --title "..." [--assignee skyforge-worker] [--parent T-003] [--brief "..."] [--files "src/a.ts,src/api"] [--blocked-by "T-001,T-002"]
+//   node board.mjs set <id> --status running [--agent <agentId>] [--summary "..."] [--title "..."] [--files "..."] [--blocked-by "T-001"]
 //   node board.mjs list [--status running]
 //   node board.mjs get <id>
-//   node board.mjs ready         # queued tasks safe to dispatch now (mode-aware)
+//   node board.mjs ready         # queued tasks safe to dispatch now (mode-aware); names each blocked task's blocker(s)
 //   node board.mjs report
 //   node board.mjs note <id> "text appended to the task brief"
 // All paths are relative to the current working directory (per-project ledger).
@@ -83,9 +83,23 @@ function pathsConflict(a, b) {
   if (a === b) return true;
   return a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
 }
-function filesOverlap(A, B) {
-  for (const a of A) for (const b of B) if (pathsConflict(a, b)) return true;
-  return false;
+// Why a queued task can't start yet, attributed to specific task ids so the
+// manager reports the blocker off the board instead of narrating it:
+//   deps     — its blockedBy entries that aren't done yet (both modes)
+//   fileHits — claimer task ids whose declared area overlaps it (guardrail only)
+// `claimers` are the tasks currently holding ground: running tasks, plus any
+// task already selected earlier in the same `ready` batch.
+function taskBlockers(board, t, claimers, doneIds) {
+  const deps = (t.blockedBy || []).filter((id) => !doneIds.has(id));
+  const fileHits = [];
+  if (board.mode === 'guardrail') {
+    for (const c of claimers) {
+      if (c.id === t.id) continue;
+      const hit = (t.files || []).some((p) => (c.files || []).some((cp) => pathsConflict(p, cp)));
+      if (hit) fileHits.push(c.id);
+    }
+  }
+  return { deps, fileHits };
 }
 
 // --- argument parsing --------------------------------------------------------
@@ -158,6 +172,7 @@ function cmdAdd(flags) {
   board.seq += 1;
   const id = `T-${String(board.seq).padStart(3, '0')}`;
   const files = parseFiles(flags.files);
+  const blockedBy = parseFiles(flags['blocked-by']);
   const task = {
     id,
     title: String(flags.title),
@@ -166,6 +181,7 @@ function cmdAdd(flags) {
     status: 'queued',
     parent: flags.parent && flags.parent !== true ? String(flags.parent) : null,
     files,
+    blockedBy,
     createdAt: nowISO(),
     updatedAt: nowISO(),
     resultSummary: '',
@@ -180,6 +196,7 @@ function cmdAdd(flags) {
     + `- Assignee: ${task.assignee}\n`
     + (task.parent ? `- Parent: ${task.parent}\n` : '')
     + (files.length ? `- Files: ${files.join(', ')}\n` : '')
+    + (blockedBy.length ? `- Blocked by: ${blockedBy.join(', ')}\n` : '')
     + `- Created: ${task.createdAt}\n\n`
     + `## Brief\n\n${brief}\n\n`
     + `## Result\n\n_(pending)_\n`;
@@ -206,6 +223,7 @@ function cmdSet(positionals, flags) {
   if (flags.summary && flags.summary !== true) t.resultSummary = String(flags.summary);
   if (flags.title && flags.title !== true) t.title = String(flags.title);
   if ('files' in flags) t.files = parseFiles(flags.files);
+  if ('blocked-by' in flags) t.blockedBy = parseFiles(flags['blocked-by']);
   t.updatedAt = nowISO();
   save(board);
   console.log(`${id} -> status=${t.status}${t.agentId ? ` agent=${t.agentId}` : ''}`);
@@ -232,43 +250,58 @@ function cmdGet(positionals) {
   console.log(JSON.stringify(findTask(board, id), null, 2));
 }
 
-// Which queued tasks are safe to dispatch right now?
-// worktree mode: all of them (isolation prevents collisions).
-// guardrail mode: a maximal batch whose files overlap neither a running task
-//                 nor another task already selected in this batch.
+// Which queued tasks are safe to dispatch right now, and why the rest wait?
+// A queued task is held if either gate fails:
+//   - dependency gate (both modes): a blockedBy task isn't done yet
+//   - file gate (guardrail): its area overlaps a running task, or one already
+//     selected earlier in this batch
+// Every queued task is reported: READY, or BLOCKED with the specific id(s)
+// holding it — so the manager states the blocker from the board, not from memory.
 function cmdReady() {
   const board = load();
-  const running = board.tasks.filter((t) => t.status === 'running');
   const queued = board.tasks.filter((t) => t.status === 'queued');
   if (queued.length === 0) {
     console.log('(nothing queued)');
     return;
   }
-  if (board.mode === 'worktree') {
-    for (const t of queued) console.log(`${t.id}  ${t.title}`);
-    return;
-  }
-  const claimed = running.flatMap((t) => t.files || []);
+  const doneIds = new Set(board.tasks.filter((t) => t.status === 'done').map((t) => t.id));
+  const claimers = board.tasks.filter((t) => t.status === 'running'); // grows as we select
   const selected = [];
+  const blocked = [];
   for (const t of queued) {
-    const f = t.files || [];
-    if (!filesOverlap(f, claimed)) {
+    const { deps, fileHits } = taskBlockers(board, t, claimers, doneIds);
+    if (deps.length === 0 && fileHits.length === 0) {
       selected.push(t);
-      claimed.push(...f);
+      claimers.push(t);
+    } else {
+      blocked.push({ t, deps, fileHits });
     }
   }
+
   if (selected.length === 0) {
-    console.log('(all queued tasks blocked by file conflicts with running work)');
-    return;
+    console.log('READY: (none)');
+  } else {
+    console.log('READY:');
+    for (const t of selected) {
+      const f = board.mode === 'guardrail' ? `   [${(t.files || []).join(', ') || 'read-only'}]` : '';
+      console.log(`  ${t.id}  ${t.title}${f}`);
+    }
   }
-  for (const t of selected) {
-    const f = (t.files || []).join(', ') || '(no files declared — read-only)';
-    console.log(`${t.id}  ${t.title}   [${f}]`);
+  if (blocked.length) {
+    console.log('BLOCKED:');
+    for (const { t, deps, fileHits } of blocked) {
+      const why = [];
+      if (deps.length) why.push(`waiting on ${deps.join(', ')} (dependency)`);
+      if (fileHits.length) why.push(`file conflict with ${fileHits.join(', ')}`);
+      console.log(`  ${t.id}  ${t.title}  — ${why.join('; ')}`);
+    }
   }
 }
 
 function cmdReport() {
   const board = load();
+  const running = board.tasks.filter((t) => t.status === 'running');
+  const doneIds = new Set(board.tasks.filter((t) => t.status === 'done').map((t) => t.id));
   const by = Object.fromEntries(STATUSES.map((s) => [s, []]));
   for (const t of board.tasks) (by[t.status] || (by[t.status] = [])).push(t);
 
@@ -286,6 +319,13 @@ function cmdReport() {
       console.log(`  ${t.id}  ${t.title}${agent}`);
       if (board.mode === 'guardrail' && t.files && t.files.length && (status === 'running' || status === 'queued')) {
         console.log(`        files: ${t.files.join(', ')}`);
+      }
+      if (status === 'queued') {
+        const { deps, fileHits } = taskBlockers(board, t, running, doneIds);
+        const why = [];
+        if (deps.length) why.push(`deps ${deps.join(', ')}`);
+        if (fileHits.length) why.push(`files ${fileHits.join(', ')}`);
+        if (why.length) console.log(`        ⤷ waiting on: ${why.join('; ')}`);
       }
       if (t.resultSummary) console.log(`        ↳ ${t.resultSummary}`);
     }

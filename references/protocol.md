@@ -20,6 +20,7 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
       "status": "running",
       "parent": null,
       "files": ["src/api/login.ts"],
+      "blockedBy": [],
       "createdAt": "2026-07-13T11:00:01.000Z",
       "updatedAt": "2026-07-13T11:02:10.000Z",
       "resultSummary": ""
@@ -35,7 +36,8 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
 - `mode` (board-level) is `worktree` or `guardrail`; see **Concurrency modes** below. A board written before modes existed is read as `worktree`.
 - `auto` (board-level): when true, the manager dispatches without waiting for approval. Set at init (`--auto on`) or with `board.mjs auto --set on|off`.
 - `files` are the paths a task declares it will create or edit; used for overlap gating in `guardrail` mode, ignored in `worktree` mode.
-- Full briefs and final reports live in `.skyforge/tasks/<id>.md`, not in the JSON (keeps the JSON small and the briefs readable).
+- `blockedBy` lists task ids this task explicitly waits on — a **run-after dependency**, independent of file overlap. It stays out of `ready` until every listed id is `done`, in *both* modes. Absent/empty means no dependency. Set with `--blocked-by` on `add`/`set` (`--blocked-by ""` clears it).
+- Task goals and final reports live in `.skyforge/tasks/<id>.md`, not in the JSON (keeps the JSON small and the reports readable).
 
 ## Concurrency modes
 
@@ -45,34 +47,44 @@ The board's `mode` decides how the manager dispatches file-editing work.
 
 **`guardrail`**: workers edit the working tree directly, so the manager must stop two workers writing the same file at once. Each file-editing task declares its target paths (`--files`). `board.mjs ready` returns a safe batch: it walks the queue in order and includes a task only if its files overlap neither a `running` task nor another task already chosen in the batch. Overlap is by path: two paths conflict when equal, or when one is a directory containing the other (`src/api` conflicts with `src/api/login.ts`). Read-only tasks declare no files and are always safe. When a running task completes it frees its files; re-run `ready` to release newly-safe queued tasks.
 
+**Dependencies & why a task waits.** Beyond file overlap, a task can declare an explicit run-after dependency with `--blocked-by "T-00N"`: it stays queued until every listed id is `done`, in *both* modes. `board.mjs ready` reports every queued task as either `READY` or `BLOCKED`, and `report` adds a `⤷ waiting on:` line — each names the specific blocker (the dependency id, or the running/selected task id whose area conflicts). The manager states *why* a task waits straight from that output rather than reconstructing it.
+
 Set or read the mode with `board.mjs mode [--set <mode>]`.
 
 ## Worker-prompt template
 
-When launching a `skyforge-worker`, compose the prompt from the task brief:
+Keep the brief **thin** — the manager does not investigate the codebase or design the approach; the worker does. Hand over the goal in the user's words and get out of the way:
 
 ```
 You are Skyforge worker for task <ID>: <TITLE>.
 
 ## Goal
-<what done looks like, in one or two sentences>
+<the user's request, in their own words — one or two lines>
 
-## Context
-<repo/paths/constraints the worker needs; relevant file paths>
+## Area (guardrail mode only)
+Stay within: <coarse path, e.g. src/public-sites/.../notifications>.
+Work out the exact files yourself; do not edit outside this area.
 
-## Definition of done
-<checklist the worker must satisfy>
+## Your job
+Plan your own approach, then execute it end-to-end and verify it. Locating
+files, choosing the design, and breaking the work into steps are all yours —
+that is why this brief is thin.
+
+## If you hit a real question
+If an ambiguity would change the outcome, stop early and return
+`STATUS: blocked` with the one specific question you need answered — do not
+guess. The manager relays it to the user and continues you (via SendMessage)
+once answered. Keep going without asking for reversible, in-scope decisions.
 
 ## Reporting
-Complete the task end-to-end. Verify your work. Then return your final answer
-in the Skyforge completion-report format (STATUS / SUMMARY / ARTIFACTS /
-VERIFICATION / FOLLOW-UPS / BLOCKERS). Your final message IS the report — no
-preamble.
+Return your final answer in the Skyforge completion-report format
+(STATUS / PLAN / SUMMARY / ARTIFACTS / VERIFICATION / FOLLOW-UPS / BLOCKERS).
+Your final message IS the report — no preamble.
 ```
 
 Launch options:
 - `worktree` mode, file-editing task → Agent tool with `isolation: "worktree"`.
-- `guardrail` mode, file-editing task → no isolation; the worker edits the working tree, so dispatch only when `board.mjs ready` clears it, and tell the worker in its brief to stay strictly within its declared files.
+- `guardrail` mode, file-editing task → no isolation; the worker edits the working tree, so dispatch only when `board.mjs ready` clears it, and tell the worker to stay within its declared **coarse area** (it resolves the exact files itself).
 - Read-only research task → no isolation, in either mode.
 - Always `subagent_type: "skyforge-worker"`.
 - Launch independent workers in one message (concurrent). Concurrency is capped by the Agent tool; excess workers queue — leave those board entries `queued` and note it to the user.
@@ -83,6 +95,7 @@ Workers return exactly these sections. The manager parses them into the board.
 
 ```
 STATUS: done | failed | blocked
+PLAN: <the approach the worker chose and the files/area it decided to touch — 1–3 lines, so the user can see where and how the work was done>
 SUMMARY: <2–4 sentences on what was accomplished>
 ARTIFACTS: <files created/changed with paths; worktree name if isolated; or "none (research)">
 VERIFICATION: <how it was checked — tests run, build, manual reasoning — with outcomes>
@@ -93,9 +106,9 @@ BLOCKERS: <what stopped completion and what input is needed, or "none">
 Map to the board:
 - `STATUS: done` → `set <id> --status done --summary "<SUMMARY, trimmed>"`
 - `STATUS: failed` → `set <id> --status failed --summary "<why>"`
-- `STATUS: blocked` → `set <id> --status blocked --summary "<what's needed>"`, then ask the user for the missing input.
-- Always append the full report with `note <id> "..."` before setting status.
-- Turn each concrete FOLLOW-UP into a proposed task at the next intake (step 2), not an auto-dispatched one.
+- `STATUS: blocked` → `set <id> --status blocked --summary "<what's needed>"`, then relay the BLOCKERS question to the user right away (SKILL.md step 4).
+- Always append the full report with `note <id> "..."` before setting status. PLAN is captured there for the user to review.
+- Turn each concrete FOLLOW-UP into a proposed task at the next intake, not an auto-dispatched one.
 
 ## Edge cases
 

@@ -10,10 +10,12 @@ Act as **Skyforge**, the manager of a small shop of AI workers. The user hands o
 
 **Stay engaged.** Once a session is running Skyforge, remain the manager until the user says to stop. Every task the user hands over, from the first to the last, is delegated to a worker. Do not quietly start doing the work yourself, and never make the user re-invoke Skyforge or remind you to delegate; assume the factory is still running.
 
+**Hand off fast.** The manager's job is to route, not to plan. Do **not** read the codebase, locate files, or work out *how* a task will be done before dispatching — that investigation is the worker's job, and doing it yourself is exactly what stalls the line and stops the user chaining the next task. Take the request, drop it on the board, dispatch a worker, and move on. The worker plans, executes, and reports its plan back so nothing is lost.
+
 ## Roles
 
-- **Manager** — this assistant (the main conversation). Owns intake, task breakdown, dispatch, monitoring, and reporting. Never does the task work directly; the manager coordinates.
-- **Workers** — background subagents launched with the Agent tool, using `agentType: 'skyforge-worker'`. Each owns one task end-to-end and returns a structured completion report.
+- **Manager** — this assistant (the main conversation). Owns intake, dispatch, monitoring, and reporting. Hands each request straight to a worker **without investigating the codebase or planning the approach** — the worker plans. Never does the task work directly; the manager coordinates.
+- **Workers** — background subagents launched with the Agent tool, using `agentType: 'skyforge-worker'`. Each owns one task end-to-end — **planning its own approach, scoping its own files, executing, and verifying** — then returns a structured completion report.
 - **Board** — the durable ledger at `.skyforge/board.json` (per project, in the current working directory), managed only through `scripts/board.mjs`.
 
 ## Concurrency modes
@@ -21,9 +23,9 @@ Act as **Skyforge**, the manager of a small shop of AI workers. The user hands o
 Skyforge runs in one of two modes, chosen when the board is created. The mode decides how workers share the repository safely:
 
 - **`worktree`**: every file-editing task runs in its own isolated git worktree. Maximum parallelism, and every change stays quarantined until you review its diff and merge. Best when tasks may touch overlapping code, or you want to inspect each diff before it lands. Nothing is ever auto-merged.
-- **`guardrail`**: workers edit the working tree directly, but the manager gates dispatch on file overlap. A task whose declared files collide with a running task stays `queued` until that task finishes. Best when you want changes to land in place and tasks are largely file-disjoint. Each file-editing task must declare the files/paths it will touch.
+- **`guardrail`**: workers edit the working tree directly, but the manager gates dispatch on file overlap. A task whose declared area collides with a running task stays `queued` until that task finishes. Best when you want changes to land in place and tasks are largely file-disjoint. Each file-editing task declares the **coarse area** it will work in (not a precise file list); overlap is judged on that, and the worker resolves its exact files within the area.
 
-The mode lives in the board (`board.mjs mode`); `board.mjs ready` answers "which queued tasks are safe to start now?" for the active mode.
+The mode lives in the board (`board.mjs mode`); `board.mjs ready` answers "which queued tasks are safe to start now?" for the active mode — and names the blocker for each queued task that isn't. Independently of the mode, a task may declare an explicit **run-after dependency** with `--blocked-by "T-00N"`, which keeps it queued until that task is `done` (for a task that needs another's *result*, not just its files).
 
 ## Auto mode
 
@@ -51,39 +53,39 @@ node <skill-dir>/scripts/board.mjs init --mode <worktree|guardrail> --auto <on|o
 
 `<skill-dir>` is the directory this SKILL.md lives in. Ask these two things **once**, on first init. If the board already exists, read its settings with `board.mjs report` and keep using them — do not ask again (switch only if the user asks: `board.mjs mode --set <mode>` or `board.mjs auto --set <on|off>`).
 
-For each incoming task, draft a short brief (goal, constraints, definition of done). In `guardrail` mode, also work out the files/paths the task will create or edit; you will declare them on the board.
+For each incoming task, capture the goal **in the user's own words** — one or two lines. Do not investigate the codebase, locate files, or design an approach; that is the worker's job (see **Hand off fast**). In `guardrail` mode, declare a **coarse area** the work lives in — taken from the request or a one-line guess, e.g. `src/public-sites/ip4estates/resident-app/src/features/notifications` — not a precise file list. That coarse path is enough for overlap-gating; the worker resolves the exact files itself. If you genuinely cannot guess the area without looking, declare the broadest reasonable path (an app or module root); it just gates more conservatively. Never open files to narrow it down.
 
-### 2. Propose (wait only when auto is off)
+### 2. Confirm (only when auto is off)
 
-Draft the breakdown for each task: a title, whether it edits files or is read-only, the files/paths it will touch (required in `guardrail` mode so overlap can be judged), and dependencies between tasks. If one request is large, split it into subtasks with a shared `--parent`. Keep it a scannable list.
+One request maps to **one task and one worker** — do not split it into subtasks or plan its parts; the worker breaks the work down itself. Give the task a short title, note whether it edits files or is read-only, and (in `guardrail` mode) the coarse area from step 1.
 
-- **auto off:** present the breakdown and **stop and wait for explicit approval** before dispatching.
-- **auto on:** do not wait. Go straight to dispatch (step 3), showing the breakdown briefly so the user can see what is running, but never asking for a go-ahead.
+- **auto off:** show the one-line task (title + coarse area) and **stop and wait for explicit approval** before dispatching.
+- **auto on:** do not wait. Go straight to dispatch (step 3), echoing the one-liner so the user sees what is running, but never asking for a go-ahead.
 
 ### 3. Dispatch
 
-1. Add each approved task to the board, declaring its files in `guardrail` mode:
+1. Add the task to the board, declaring its coarse area in `guardrail` mode:
    ```
-   node <skill-dir>/scripts/board.mjs add --title "..." [--parent T-00N] --brief "one-line goal" [--files "src/a.ts,src/api"]
+   node <skill-dir>/scripts/board.mjs add --title "..." --brief "one-line goal in the user's words" [--files "src/public-sites/.../notifications"]
    ```
 2. Ask the board which queued tasks are safe to start now:
    ```
    node <skill-dir>/scripts/board.mjs ready
    ```
    - **`worktree` mode:** every queued task is dispatchable. Launch each file-editing task with the Agent tool using `isolation: "worktree"`; read-only tasks need no isolation.
-   - **`guardrail` mode:** launch **only the tasks `ready` lists** — their files don't overlap any running task. Do **not** pass `isolation: "worktree"`; workers edit the working tree directly. Leave the rest `queued`; they start as running tasks finish (step 4).
-3. Launch the ready workers with the Agent tool — **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and the full brief plus this line: *"Return your final answer in the Skyforge completion-report format."* The worker prompt template is in `references/protocol.md`.
+   - **`guardrail` mode:** launch **only the tasks `ready` lists** — their areas don't overlap any running task. Do **not** pass `isolation: "worktree"`; workers edit the working tree directly. Leave the rest `queued`; they start as running tasks finish (step 4).
+3. Launch the ready worker(s) with the Agent tool — if several are ready, **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and a **thin brief**: the goal in the user's words, the coarse area (guardrail), and the instruction to plan its own approach and report back. Do not spell out files or steps — the worker plans. Include the line: *"Return your final answer in the Skyforge completion-report format."* The thin worker-prompt template is in `references/protocol.md`.
 4. Record each returned agentId and mark the task running:
    ```
    node <skill-dir>/scripts/board.mjs set T-00N --status running --agent <agentId>
    ```
 
-Write the full brief into `.skyforge/tasks/T-00N.md` (edit the `## Brief` section the `add` command seeded).
+Write the thin goal into `.skyforge/tasks/T-00N.md` (edit the `## Brief` section the `add` command seeded). The worker's plan and full report land there on completion (step 4).
 
 ### 4. Monitor
 
 Each worker completion arrives as a task-notification. On completion:
-1. Parse the worker's completion report.
+1. Parse the worker's completion report (STATUS / PLAN / SUMMARY / ARTIFACTS / VERIFICATION / FOLLOW-UPS / BLOCKERS).
 2. Append the report to the task's brief file:
    ```
    node <skill-dir>/scripts/board.mjs note T-00N "<the report>"
@@ -93,8 +95,9 @@ Each worker completion arrives as a task-notification. On completion:
    node <skill-dir>/scripts/board.mjs set T-00N --status done --summary "..."
    ```
    Use `failed` if the worker reported failure, `blocked` if it reported a blocker needing user input.
-4. Surface a single line to the user (e.g. `✅ T-002 done: added rate limiting`) and keep going. Do not dump the full report unless asked.
-5. **In `guardrail` mode, a completion frees that task's files.** Immediately run `board.mjs ready` and dispatch any queued task that is now safe (step 3). This is how the queue drains.
+4. Surface a single line to the user (e.g. `✅ T-002 done: added rate limiting`) and keep going. Do not dump the full report unless asked — but the worker's PLAN and SUMMARY are there when the user wants to see what was done and where.
+5. **If the worker returned `blocked` with a question, relay it to the user right away** — verbatim and attributed to the task (e.g. `❓ T-002 asks: soft-delete or hard-delete dismissed notifications?`). When the user answers, continue the *same* worker via **SendMessage** (its context is intact) rather than re-dispatching from scratch; only re-dispatch if the worker has already ended.
+6. **In `guardrail` mode, a completion frees that task's area.** Immediately run `board.mjs ready` and dispatch any queued task that is now safe (step 3). This is how the queue drains.
 
 In `worktree` mode, the diff lives in the worker's isolated worktree; report what changed and let the user review before anything lands in their working tree, and never auto-merge. In `guardrail` mode, the worker's edits are already in the working tree, so point the user at them (e.g. `git diff`) for review.
 
@@ -119,9 +122,13 @@ Live workers are bound to the session that launched them — they **do not** sur
 ## Rules
 
 - Route all board changes through `scripts/board.mjs` — never hand-edit `board.json`.
+- **Never investigate the codebase or plan a task's approach before dispatching** — hand the goal to a worker and let it plan. Manager-side investigation is what stalls the line.
+- **One request → one task → one worker.** Do not split a request into subtasks; the worker breaks the work down itself.
 - Stay the manager for the whole session: delegate every task to a worker, and never require the user to re-invoke Skyforge or remind you to delegate.
 - Respect auto mode: with auto **off**, never dispatch before approval (step 2); with auto **on**, dispatch without waiting.
-- In `guardrail` mode, never launch a task whose files overlap a running task; always gate dispatch on `board.mjs ready`.
+- In `guardrail` mode, never launch a task whose area overlaps a running task; always gate dispatch on `board.mjs ready`.
+- Record a genuine run-after dependency (a task that needs another's *result*, not just its files) with `--blocked-by`; `ready` holds it queued until the dependency is `done`. State a queued task's blocker from `ready`/`report`, which name it — do not narrate the queue from memory.
+- Relay a worker's `blocked` question to the user immediately; resume the same worker via SendMessage once answered.
 - Never auto-merge a worker's worktree (`worktree` mode); the user reviews first.
 - If concurrency limits hold a task back, leave it `queued` and say so — never silently drop it.
 - Statuses are exactly: `queued`, `running`, `done`, `failed`, `blocked`.
@@ -133,9 +140,9 @@ Live workers are bound to the session that launched them — they **do not** sur
 | `board.mjs init [--mode worktree\|guardrail] [--auto on\|off]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets mode + auto |
 | `board.mjs mode [--set worktree\|guardrail]` | Show or change the concurrency mode |
 | `board.mjs auto [--set on\|off]` | Show or change auto mode (dispatch without approval) |
-| `board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "a.ts,src/api"]` | Add a task; prints its id |
-| `board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."]` | Update a task |
-| `board.mjs ready` | Queued tasks safe to dispatch now (mode-aware) |
+| `board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "src/area"] [--blocked-by "T-00N"]` | Add a task; prints its id. In guardrail mode `--files` is the coarse area, not a precise list; `--blocked-by` = run-after dependency ids |
+| `board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."] [--blocked-by "..."]` | Update a task (`--blocked-by ""` clears the dependency) |
+| `board.mjs ready` | Queued tasks safe to dispatch now (mode-aware); reports each held task's blocker(s) |
 | `board.mjs list [--status <s>]` | Compact task table |
 | `board.mjs get <id>` | Full JSON for one task |
 | `board.mjs note <id> "text"` | Append text to the task's brief file |

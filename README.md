@@ -92,11 +92,12 @@ docs/index.html           a standalone landing page describing the skill
 
 | Command | Purpose |
 |---|---|
-| `node board.mjs init [--mode worktree\|guardrail]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets the mode |
+| `node board.mjs init [--mode worktree\|guardrail] [--auto on\|off]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets mode + auto |
 | `node board.mjs mode [--set worktree\|guardrail]` | Show or change the concurrency mode |
-| `node board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "a.ts,src/api"]` | Add a task; prints its id |
-| `node board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."]` | Update a task |
-| `node board.mjs ready` | Queued tasks safe to dispatch now (mode-aware) |
+| `node board.mjs auto [--set on\|off]` | Show or change auto mode (dispatch without approval) |
+| `node board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "src/area"] [--blocked-by "T-00N"]` | Add a task; prints its id. `--blocked-by` = run-after dependency ids |
+| `node board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."] [--blocked-by "..."]` | Update a task (`--blocked-by ""` clears the dependency) |
+| `node board.mjs ready` | Queued tasks safe to dispatch now (mode-aware); reports each held task's blocker(s) |
 | `node board.mjs list [--status <s>]` | Compact task table |
 | `node board.mjs get <id>` | Full JSON for one task |
 | `node board.mjs note <id> "text"` | Append text to the task's brief file |
