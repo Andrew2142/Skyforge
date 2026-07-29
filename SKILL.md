@@ -74,7 +74,7 @@ One request maps to **one task and one worker** — do not split it into subtask
    ```
    - **`worktree` mode:** every queued task is dispatchable. Launch each file-editing task with the Agent tool using `isolation: "worktree"`; read-only tasks need no isolation.
    - **`guardrail` mode:** launch **only the tasks `ready` lists** — their areas don't overlap any running task. Do **not** pass `isolation: "worktree"`; workers edit the working tree directly. Leave the rest `queued`; they start as running tasks finish (step 4).
-3. Launch the ready worker(s) with the Agent tool — if several are ready, **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and a **thin brief**: the goal in the user's words, the coarse area (guardrail), and the instruction to plan its own approach and report back. Do not spell out files or steps — the worker plans. Include the line: *"Return your final answer in the Skyforge completion-report format."* The thin worker-prompt template is in `references/protocol.md`.
+3. Launch the ready worker(s) with the Agent tool — if several are ready, **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and **name the worker by setting the Agent tool's `description` to its task id followed by a 2–4 word label — e.g. `T-003 payment settlement fixes`.** That id-prefixed string is the name shown in the UI and in completion notifications, so it MUST carry the `T-00N` id: **never dispatch a worker whose `description` does not start with its task id** (a re-dispatch keeps the same id, e.g. `T-003 payment settlement fixes` — do not rename it "Resume …"). Also give it a **thin brief**: the goal in the user's words, the coarse area (guardrail), and the instruction to plan its own approach and report back. Do not spell out files or steps — the worker plans. Include the line: *"Return your final answer in the Skyforge completion-report format."* The thin worker-prompt template is in `references/protocol.md`.
 4. Record each returned agentId and mark the task running:
    ```
    node <skill-dir>/scripts/board.mjs set T-00N --status running --agent <agentId>
@@ -103,11 +103,17 @@ In `worktree` mode, the diff lives in the worker's isolated worktree; report wha
 
 ### 5. Report on demand
 
-When the user asks for status ("how's the factory", "status report", "what's running"), run and present:
+When the user asks for status ("how's the factory", "status report", "what's running", "give me a board"), do both:
 
-```
-node <skill-dir>/scripts/board.mjs report
-```
+1. **Live board — a themed list at a URL.** Ensure the dashboard server is up, then hand the user the link:
+   ```
+   node <skill-dir>/scripts/dashboard.mjs
+   ```
+   It prints `http://localhost:4788` (and simply reprints the URL if it is already running — safe to re-run). The page is a self-contained, editorial **list** of every task — one row per task, sorted running → queued → done/failed — with a mode/auto/counts header band, color-coded status pills, the agent id, the one-line summary, and each queued task's blocker. It reads `.skyforge/board.json` **read-only** and auto-polls every few seconds, so the user watches status change live without refreshing. Start it in the background so it keeps serving while you keep working.
+2. **Text fallback.** For an inline snapshot (or when a browser isn't handy), run:
+   ```
+   node <skill-dir>/scripts/board.mjs report
+   ```
 
 Add brief manager commentary: what is blocked and why, what is waiting on approval, and what is ready for review.
 
@@ -148,8 +154,11 @@ Live workers are bound to the session that launched them — they **do not** sur
 | `board.mjs note <id> "text"` | Append text to the task's brief file |
 | `board.mjs report` | Grouped human-readable status |
 
+**Live dashboard (separate script, read-only):** `node <skill-dir>/scripts/dashboard.mjs` serves a themed, auto-refreshing **list** of the board at `http://localhost:4788` — it reuses the running instance if the port is already bound, and never writes `board.json`. Hand the URL to the user for status on demand (step 5).
+
 ## Additional resources
 
 - **`references/protocol.md`** — full board schema, the worker-prompt template, the completion-report format, and edge cases (dead worker, blocked task, re-dispatch).
 - **`scripts/board.mjs`** — the ledger CLI (the only writer of the board).
+- **`scripts/dashboard.mjs`** — read-only live board: a themed task **list** served at `http://localhost:4788`, auto-polling `.skyforge/board.json` (never writes it).
 - **Worker agent** — `~/.claude/agents/skyforge-worker.md` defines the `skyforge-worker` subagent and its completion-report format.

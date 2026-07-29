@@ -73,7 +73,21 @@ The **first** time you spin it up in a chat, Skyforge asks two quick toggles:
 After that it stays engaged for the rest of the session — every task you hand over
 is delegated to a worker, no need to remind it. Ask for status any time
 (`how's the factory?`) to get a grouped report of what's running, blocked, and
-ready for review.
+ready for review, plus a link to the live board.
+
+## The live board
+
+`scripts/dashboard.mjs` serves a themed, auto-refreshing list of every task at
+`http://localhost:4788` — one row per task, sorted running → queued → done, with
+status pills, agent ids, one-line summaries, and each queued task's blocker. It
+reads `.skyforge/board.json` and never writes it, so it can run alongside the
+manager without touching the ledger.
+
+```sh
+node ~/.claude/skills/skyforge/scripts/dashboard.mjs   # SKYFORGE_DASH_PORT to override 4788
+```
+
+Ask for status and the manager starts it for you and hands over the URL.
 
 ## Repository layout
 
@@ -82,6 +96,7 @@ install.sh                one-line installer (clones + copies into ~/.claude)
 SKILL.md                  the skill definition (the manager's operating loop)
 references/protocol.md    board schema, worker-prompt template, report format, edge cases
 scripts/board.mjs         the ledger CLI, the only writer of .skyforge/board.json
+scripts/dashboard.mjs     read-only live board served at http://localhost:4788
 agents/skyforge-worker.md the background worker subagent + its completion-report format
 docs/index.html           a standalone landing page describing the skill
 ```

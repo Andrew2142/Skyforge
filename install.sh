@@ -36,6 +36,7 @@ mkdir -p "$SKILL_DIR/references" "$SKILL_DIR/scripts" "$AGENTS_DIR"
 cp "$SRC/SKILL.md"                  "$SKILL_DIR/SKILL.md"
 cp "$SRC/references/protocol.md"    "$SKILL_DIR/references/protocol.md"
 cp "$SRC/scripts/board.mjs"         "$SKILL_DIR/scripts/board.mjs"
+cp "$SRC/scripts/dashboard.mjs"     "$SKILL_DIR/scripts/dashboard.mjs"
 cp "$SRC/agents/skyforge-worker.md" "$AGENTS_DIR/skyforge-worker.md"
 
 say ""

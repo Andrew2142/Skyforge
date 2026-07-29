@@ -104,10 +104,10 @@
 
   /* ---------- prose ---------- */
   h2 {
-    font-weight: 400;
+    font-weight: 700;
     font-variant: small-caps;
     letter-spacing: .08em;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     text-align: center;
     margin: 0 0 1.6rem;
   }
@@ -149,40 +149,15 @@
     background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2060%2034%27%3E%3Cpath%20fill%3D%27%239a9a9a%27%20d%3D%27M2%2011%2016%207%2057%207%2057%2014%2039%2014%2039%2022%2048%2022%2051%2030%2013%2030%2016%2022%2025%2022%2025%2014%2016%2014Z%27%2F%3E%3C%2Fsvg%3E") no-repeat center / auto 100%;
   }
 
-  /* ---------- figure: the board ---------- */
+  /* ---------- illustrations: shared breakout width ---------- */
   figure {
-    margin: 2.4rem 0;
+    margin: 2.6rem 0;
     padding: 0;
   }
-  .board {
-    border: 1px solid var(--ink);
-    padding: 1.1rem 1.3rem 1.3rem;
-    font-family: var(--mono);
-    font-size: .8rem;
-    line-height: 1.5;
+  .wide {
+    width: min(94vw, 960px);
+    margin-left: calc(50% - min(94vw, 960px) / 2);
   }
-  .board .bhead {
-    display: flex;
-    justify-content: space-between;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-size: .68rem;
-    padding-bottom: .8rem;
-    margin-bottom: .7rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  .board .brow {
-    display: grid;
-    grid-template-columns: 3.6rem 1fr auto;
-    gap: .8rem;
-    align-items: baseline;
-    padding: .38rem 0;
-  }
-  .board .brow + .brow { border-top: 1px dotted var(--rule); }
-  .board .bid { color: var(--muted); font-variant-numeric: tabular-nums; }
-  .board .btitle { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .board .bstate { text-transform: uppercase; letter-spacing: .08em; color: var(--ink); }
   figcaption {
     text-align: center;
     font-style: italic;
@@ -192,11 +167,42 @@
   }
   figcaption b { font-style: normal; font-weight: 700; color: var(--ink); }
 
+  /* ---------- figure: the board ---------- */
+  .board {
+    border: 1px solid var(--ink);
+    padding: 1.2rem 1.6rem 1.4rem;
+    font-family: var(--mono);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  .board .bhead {
+    display: flex;
+    justify-content: space-between;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-size: .78rem;
+    padding-bottom: .9rem;
+    margin-bottom: .8rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .board .brow {
+    display: grid;
+    grid-template-columns: 5rem 1fr auto;
+    gap: 1rem;
+    align-items: baseline;
+    padding: .5rem 0;
+  }
+  .board .brow + .brow { border-top: 1px dotted var(--rule); }
+  .board .bid { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .board .btitle { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .bstate { text-transform: uppercase; letter-spacing: .08em; color: var(--ink); }
+
   /* ---------- the loop: ordered list ---------- */
   ol.loop {
     list-style: none;
     counter-reset: step;
-    margin: 0;
+    margin: 1.6rem 0 0;
     padding: 0;
   }
   ol.loop > li {
@@ -249,7 +255,7 @@
     font-size: .9rem;
     letter-spacing: .08em;
     color: var(--ink);
-    margin-top: 1rem;
+    margin-top: 1.2rem;
   }
   .states span { color: var(--faint); padding: 0 .3rem; }
 
@@ -307,11 +313,38 @@
   }
   .colophon .mono { font-style: normal; font-size: .78rem; letter-spacing: .05em; color: var(--faint); }
 
+  /* ---------- the factory floor (animated) ---------- */
+  .floor-frame {
+    border: 1px solid var(--ink);
+    padding: .5rem .5rem 0;
+    background: var(--paper);
+  }
+  .floor-frame canvas { display: block; width: 100%; height: auto; }
+  .floor-bar {
+    display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+    border-top: 1px solid var(--rule);
+    margin-top: .4rem; padding: .5rem .3rem;
+    font-family: var(--mono); font-size: .7rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .floor-bar .spacer { flex: 1 1 auto; }
+  .floor-legend {
+    display: flex; gap: 1.6rem; justify-content: center; flex-wrap: wrap;
+    margin: 1rem 0 0;
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .floor-legend span { display: inline-flex; align-items: center; gap: .45rem; }
+  .floor-legend svg { display: block; }
+
+  /* ---------- static diagrams ---------- */
+  .diagram { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+
   @media (max-width: 32rem) {
     body { font-size: 1.08rem; }
     .book { padding: 3rem 1.25rem 4rem; }
-    .board { font-size: .74rem; }
-    .board .brow { grid-template-columns: 3rem 1fr auto; }
+    .board { font-size: .82rem; padding: 1rem 1.1rem; }
+    .board .brow { grid-template-columns: 4rem 1fr auto; gap: .7rem; }
   }
 </style>
 
@@ -319,6 +352,7 @@
 <body>
 <div class="book">
 
+  <!-- ===================== HERO ===================== -->
   <header class="titlepage">
     <p class="kicker">A Claude Code Skill</p>
     <div class="titlemark">
@@ -328,127 +362,170 @@
     </div>
     <p class="sub">Delegate your prompts across multiple AI agents</p>
     <p class="fleuron"><svg class="forge" viewBox="0 0 60 34" fill="currentColor" role="img" aria-label="Anvil"><path d="M2 11 16 7 57 7 57 14 39 14 39 22 48 22 51 30 13 30 16 22 25 22 25 14 16 14Z"/></svg></p>
-    <p class="epigraph">Work from a single chat window while one manager delegates your prompts to a floor of AI sub-agents.</p>
+    <p class="epigraph">One chat in front of you; a manager dispatching your prompts to a pool of background agents behind it.</p>
   </header>
 
+  <!-- ===================== HOW IT WORKS ===================== -->
   <section>
+    <h2>How it works</h2>
     <p class="opening">
-      Skyforge lets you work from a single chat window while your prompts get
-      delegated to sub-agents, all overseen by one manager, making it a simpler
-      way to get work done rather than switching windows every few seconds. Just
-      keep feeding the manager tasks, and it delegates to sub-agents like a
-      factory floor.
+      Skyforge runs multiple AI coding agents from one chat. You send tasks; a
+      manager assigns each to a background worker, tracks them on a durable
+      board, and reports back with one line when a task finishes. The agents
+      work in parallel, so you can keep sending tasks without switching windows
+      or watching a dashboard.
     </p>
     <p>
-      Nothing about it is loud. There are no dashboards to babysit and no
-      progress bars to watch. You speak in tasks; it answers in a single line
-      when each one is done, and gives you the whole picture only when you ask
-      for it.
+      Three roles, each with one job. The <strong>manager</strong> is your main
+      chat. It takes tasks in, dispatches them, and reports back, but it never
+      writes code itself. Each <strong>worker</strong> is a background agent
+      that owns a single task end to end and returns a structured report. The
+      <strong>board</strong> is a JSON ledger in your repo at
+      <code>.skyforge/board.json</code>, and it survives restarts, so you never
+      lose state.
     </p>
-  </section>
 
-  <hr class="break">
+    <figure class="wide">
+      <div class="floor-frame">
+        <canvas id="floor" width="1000" height="520" role="img"
+          aria-label="An animated shop floor: tasks pass from you to the manager, onto the board, out to worker anvils where they are worked, and back again as finished."></canvas>
+        <div class="floor-bar">
+          <span>skyforge &middot; the floor</span>
+          <span class="spacer"></span>
+          <span>runs on its own</span>
+        </div>
+      </div>
+      <div class="floor-legend">
+        <span><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="#ffffff" stroke="#1a1a1a"/></svg>queued</span>
+        <span><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="#ffffff" stroke="#1a1a1a"/><path d="M1 10 L10 1 M4 13 L13 4 M1 5 L5 1" stroke="#1a1a1a" stroke-width=".9"/></svg>running</span>
+        <span><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="#1a1a1a"/></svg>done</span>
+      </div>
+      <figcaption><b>Figure 1.</b> One task's path: you &rarr; manager &rarr; board &rarr; worker &rarr; back, done. Multiple run in parallel.</figcaption>
+    </figure>
 
-  <section>
-    <h2>What it does</h2>
     <p>
-      The work is divided among three roles, and each stays firmly in its lane.
+      The whole thing is one loop. The first two steps wait for you; the rest
+      run on their own.
     </p>
-    <p>
-      The <strong>Manager</strong> is the main conversation. It owns intake,
-      breaks each request into tasks, dispatches them, watches for completions,
-      and reports back. It never does the task work itself; it only
-      coordinates, so nothing moves without your approval.
-    </p>
-    <p>
-      The <strong>Workers</strong> are background agents, one task apiece,
-      carried end to end and returned as a structured report. When you spin up
-      Skyforge you choose how they share the repository. In <em>guardrail</em>
-      mode the manager checks what running workers are touching and queues any
-      task that would edit the same files, so work runs in parallel wherever it
-      safely can. In <em>worktree</em> mode each file-editing task runs in its
-      own isolated git worktree, so nothing ever collides and you review each
-      diff before it lands.
-    </p>
-    <p>
-      The <strong>Board</strong> is a durable ledger kept in your repository at
-      <code>.skyforge/board.json</code>. Every change flows through a single
-      command, and it survives a restart, so the shop always remembers exactly
-      where it stood.
-    </p>
-  </section>
+    <ol class="loop">
+      <li><h3>Send a task</h3><p>Say <em>“skyforge”</em> and describe the task. On first run it asks two toggles (auto mode and worktree isolation), then creates the board in the current repo.</p></li>
+      <li><h3>Approve, or skip</h3><p>Skyforge proposes a one-line breakdown (which tasks write files, which are read-only) and waits for your go-ahead. With auto mode on, it skips the prompt and dispatches immediately.</p></li>
+      <li><h3>Parallel dispatch</h3><p>Approved tasks launch as background workers and run in parallel. They’re held back only when they’d touch the same files, or each gets its own git worktree.</p></li>
+      <li><h3>Get the report</h3><p>Each worker returns a structured report; the board updates and you get a single line, not a wall of text.</p></li>
+      <li><h3>Check status</h3><p>Say <em>“how’s the factory?”</em> for a grouped status: what’s running, what’s blocked, what’s ready to review.</p></li>
+      <li><h3>Keep adding</h3><p>Queue new tasks anytime. Workers already running aren’t affected; the loop just widens to take more.</p></li>
+    </ol>
 
-  <hr class="break">
-
-  <section>
-    <h2>The board</h2>
     <p>
-      At any moment the board holds every task and the single state it is in.
-      A glance tells you what is running, what is finished, and what has
-      stalled waiting on you.
+      The board holds every task and its current state. One look shows what’s
+      running, what’s done, and what’s blocked waiting on you.
     </p>
-    <figure>
-      <div class="board" role="img" aria-label="A task board with four tasks in running, done, queued, and blocked states">
-        <div class="bhead"><span>skyforge &middot; board</span><span>4 tasks</span></div>
+    <figure class="wide">
+      <div class="board" role="img" aria-label="A task board with five tasks in running, done, queued, blocked, and failed states">
+        <div class="bhead"><span>skyforge &middot; board</span><span>5 tasks</span></div>
         <div class="brow"><span class="bid">T-001</span><span class="btitle">Add rate limiting to /login</span><span class="bstate">running</span></div>
         <div class="brow"><span class="bid">T-002</span><span class="btitle">Audit dependency licenses</span><span class="bstate">done</span></div>
         <div class="brow"><span class="bid">T-003</span><span class="btitle">Draft the 0.9 release notes</span><span class="bstate">queued</span></div>
         <div class="brow"><span class="bid">T-004</span><span class="btitle">Fix the flaky checkout test</span><span class="bstate">blocked</span></div>
+        <div class="brow"><span class="bid">T-005</span><span class="btitle">Migrate the config loader</span><span class="bstate">failed</span></div>
       </div>
-      <figcaption><b>Figure 1.</b> Four tasks, four states, one ledger.</figcaption>
+      <figcaption><b>Figure 2.</b> Five tasks, all five states, one ledger.</figcaption>
+    </figure>
+    <p class="states">queued<span>·</span>running<span>·</span>done<span>·</span>blocked<span>·</span>failed</p>
+
+    <p>
+      Two workers can’t safely edit the same files at once. When you start
+      Skyforge you pick one of two strategies for keeping their changes from
+      colliding.
+    </p>
+    <figure class="wide">
+      <svg class="diagram" viewBox="0 0 960 230" role="img" aria-label="Two modes. Guardrail: workers edit the working tree in place, and a task whose files overlap a running task waits; a disjoint task runs freely. Worktree: each task runs in its own isolated copy of the repository, each producing a diff to review.">
+        <line x1="480" y1="28" x2="480" y2="214" stroke="#e0e0e0"/>
+
+        <!-- GUARDRAIL -->
+        <g font-family="ui-monospace, monospace">
+          <text x="24" y="44" font-size="15" letter-spacing=".14em" fill="#6a6a6a">GUARDRAIL</text>
+          <text x="24" y="66" font-size="13" fill="#9a9a9a">workers edit the working tree in place</text>
+
+          <rect x="28" y="96" width="18" height="18" fill="#ffffff" stroke="#1a1a1a"/>
+          <path d="M28 114 L46 96 M34 114 L46 102 M28 108 L34 96" stroke="#1a1a1a" stroke-width=".9"/>
+          <text x="58" y="110" font-size="15" fill="#1a1a1a">api/  running</text>
+
+          <rect x="28" y="132" width="18" height="18" fill="#ffffff" stroke="#1a1a1a"/>
+          <text x="58" y="146" font-size="15" fill="#6a6a6a">api/  queued &middot; waits for api/</text>
+
+          <rect x="28" y="168" width="18" height="18" fill="#ffffff" stroke="#1a1a1a"/>
+          <path d="M28 186 L46 168 M34 186 L46 174 M28 180 L34 168" stroke="#1a1a1a" stroke-width=".9"/>
+          <text x="58" y="182" font-size="15" fill="#1a1a1a">web/  running &middot; free</text>
+
+          <text x="24" y="212" font-size="12.5" fill="#9a9a9a">overlap waits its turn &middot; all edits land in one tree</text>
+        </g>
+
+        <!-- WORKTREE -->
+        <g font-family="ui-monospace, monospace">
+          <text x="504" y="44" font-size="15" letter-spacing=".14em" fill="#6a6a6a">WORKTREE</text>
+          <text x="504" y="66" font-size="13" fill="#9a9a9a">each task in its own git worktree</text>
+
+          <circle cx="528" cy="145" r="14" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.4"/>
+          <text x="528" y="177" text-anchor="middle" font-size="12.5" fill="#6a6a6a">repo</text>
+          <path d="M544 145 Q576 103 604 103 M544 145 L604 145 M544 145 Q576 187 604 187" fill="none" stroke="#9a9a9a"/>
+
+          <rect x="604" y="88" width="316" height="30" fill="#ffffff" stroke="#1a1a1a"/>
+          <text x="618" y="108" font-size="14" fill="#1a1a1a">worktree &middot; T-001</text><text x="906" y="108" text-anchor="end" font-size="13" fill="#6a6a6a">&#8627; diff</text>
+          <rect x="604" y="130" width="316" height="30" fill="#ffffff" stroke="#1a1a1a"/>
+          <text x="618" y="150" font-size="14" fill="#1a1a1a">worktree &middot; T-002</text><text x="906" y="150" text-anchor="end" font-size="13" fill="#6a6a6a">&#8627; diff</text>
+          <rect x="604" y="172" width="316" height="30" fill="#ffffff" stroke="#1a1a1a"/>
+          <text x="618" y="192" font-size="14" fill="#1a1a1a">worktree &middot; T-003</text><text x="906" y="192" text-anchor="end" font-size="13" fill="#6a6a6a">&#8627; diff</text>
+        </g>
+      </svg>
+      <figcaption><b>Figure 3.</b> <b>Guardrail</b> queues any task that overlaps a running one’s files; <b>worktree</b> isolates each in its own git worktree, so you review every diff before it merges.</figcaption>
+    </figure>
+
+    <p>
+      One more toggle. Auto mode sets whether the manager waits for your
+      approval before dispatching, or just goes.
+    </p>
+    <figure class="wide">
+      <svg class="diagram" viewBox="0 0 960 170" role="img" aria-label="Auto mode. With auto off the manager proposes and waits for your yes before dispatching. With auto on it dispatches at once, still on the board and still stoppable.">
+        <g font-family="ui-monospace, monospace">
+          <text x="24" y="67" font-size="13" letter-spacing=".16em" fill="#6a6a6a">AUTO OFF</text>
+          <rect x="150" y="44" width="170" height="36" rx="4" fill="#ffffff" stroke="#1a1a1a"/><text x="235" y="67" text-anchor="middle" font-size="15" fill="#1a1a1a">propose</text>
+          <path d="M320 62 H350 M344 57 L350 62 L344 67" fill="none" stroke="#6a6a6a" stroke-width="1.2"/>
+          <rect x="360" y="44" width="210" height="36" rx="4" fill="#ffffff" stroke="#1a1a1a"/><text x="465" y="67" text-anchor="middle" font-size="15" fill="#1a1a1a">wait &middot; your yes</text>
+          <path d="M570 62 H600 M594 57 L600 62 L594 67" fill="none" stroke="#6a6a6a" stroke-width="1.2"/>
+          <rect x="610" y="44" width="170" height="36" rx="4" fill="#1a1a1a"/><text x="695" y="67" text-anchor="middle" font-size="15" fill="#ffffff">dispatch</text>
+
+          <text x="24" y="129" font-size="13" letter-spacing=".16em" fill="#6a6a6a">AUTO ON</text>
+          <rect x="150" y="106" width="170" height="36" rx="4" fill="#1a1a1a"/><text x="235" y="129" text-anchor="middle" font-size="15" fill="#ffffff">dispatch</text>
+          <text x="350" y="129" font-size="15" fill="#9a9a9a">at once, still on the board and stoppable</text>
+        </g>
+      </svg>
+      <figcaption><b>Figure 4.</b> Auto off waits for your approval; auto on dispatches immediately.</figcaption>
     </figure>
   </section>
 
   <hr class="break">
 
+  <!-- ===================== INSTALL ===================== -->
   <section>
-    <h2>Installing</h2>
+    <h2>Installation</h2>
     <p>
-      Skyforge is a Claude Code skill. The simplest way to add it: in Claude
-      Code, or any coding agent, hand over the repository and let it do the
-      work for you.
+      Skyforge is a Claude Code skill. Easiest install: point Claude Code (or
+      any coding agent) at the repo and let it install for you.
     </p>
     <div class="say">
       <span class="tag">Say this to your assistant</span>
       <span class="line">Please install this skill:<span class="url">https://github.com/Andrew2142/Skyforge</span></span>
     </div>
     <p>
-      It reads the repository and runs the one-line installer on your behalf. Or
-      run it yourself:
+      It clones the repo and runs the installer for you. Or do it manually:
     </p>
     <pre class="shell">curl -fsSL https://raw.githubusercontent.com/Andrew2142/Skyforge/main/install.sh | bash</pre>
     <p>
-      The installer places the skill under <code>~/.claude/skills/skyforge</code>
-      and its worker under <code>~/.claude/agents</code>. Start a fresh session,
-      and the shop is open.
-    </p>
-  </section>
-
-  <hr class="break">
-
-  <section>
-    <h2>How to use it</h2>
-    <p>
-      One loop runs the whole shop. The first two steps wait on your word; the
-      rest turn on their own.
-    </p>
-    <ol class="loop">
-      <li><h3>Hand over a task</h3><p>Say <em>“skyforge”</em> and describe the work. The first time, it asks two quick toggles (auto mode, and worktree isolation), then initialises the board in the current repository.</p></li>
-      <li><h3>Approve the plan</h3><p>Skyforge proposes a breakdown (which tasks edit files, which only read, and what depends on what), then stops for your yes. With auto mode on, it skips this and dispatches straight away.</p></li>
-      <li><h3>Watch it dispatch</h3><p>Approved tasks start as background workers and run in parallel, held back only where they would touch the same files (guardrail mode) or given their own isolated worktrees (worktree mode).</p></li>
-      <li><h3>Be reported to</h3><p>Each worker finishes with a report; the board updates and you receive a single line, not a wall of text.</p></li>
-      <li><h3>Ask for the picture</h3><p>Say <em>“how’s the factory?”</em> for a grouped status: what runs, what is blocked, and what is ready for your review.</p></li>
-      <li><h3>Keep feeding</h3><p>Drop in new tasks whenever you like. Workers already in flight carry on untouched; the loop simply widens to hold more.</p></li>
-    </ol>
-  </section>
-
-  <hr class="break">
-
-  <section>
-    <h2>To begin</h2>
-    <p>
-      Any of these will wake the shop. Speak plainly; the manager is listening
-      for the intent, not the exact words.
+      The installer drops the skill in <code>~/.claude/skills/skyforge</code>
+      and its worker agent in <code>~/.claude/agents</code>. Start a fresh
+      session and it’s ready. Any of these triggers it, since it matches intent,
+      not exact wording:
     </p>
     <ul class="phrases">
       <li>skyforge</li>
@@ -456,10 +533,6 @@
       <li>spin up the factory</li>
       <li>how’s the factory doing?</li>
     </ul>
-    <p style="text-align:center; margin-top:2rem;">
-      And every task, from first breath to last, lives in one of five states:
-    </p>
-    <p class="states">queued<span>·</span>running<span>·</span>done<span>·</span>blocked<span>·</span>failed</p>
   </section>
 
   <div class="colophon">
@@ -468,5 +541,194 @@
   </div>
 
 </div>
+
+<script>
+(function(){
+  var canvas = document.getElementById('floor'); if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var LW=1000, LH=520, scale=1, DPR=Math.min(window.devicePixelRatio||1, 2);
+  var MONO='ui-monospace,"SF Mono",Menlo,Consolas,monospace';
+  var C={ink:'#1a1a1a', muted:'#6a6a6a', faint:'#9a9a9a', rule:'#e0e0e0', paper:'#ffffff'};
+  var ease=function(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;};
+
+  function resize(){
+    var cssW=canvas.parentElement.clientWidth||canvas.clientWidth; if(!cssW) return;
+    var cssH=cssW*(LH/LW);
+    canvas.style.height=cssH+'px';
+    canvas.width=Math.round(cssW*DPR); canvas.height=Math.round(cssH*DPR);
+    scale=(cssW*DPR)/LW;
+    if(typeof render==='function') render();
+  }
+
+  var NODE={
+    user:{x:84,y:262,w:106,h:92,label:'YOU',sub:'tasks in'},
+    manager:{x:266,y:262,w:150,h:104,label:'MANAGER',sub:'routes work'}
+  };
+  var BOARD={x:472,y:96,w:172,h:330};
+  var BOARD_IN={x:BOARD.x,y:262};
+  var BOARD_OUT={x:BOARD.x+BOARD.w,y:262};
+  var WORKERS=[{x:838,y:130,busy:null,spark:0},{x:838,y:262,busy:null,spark:0},{x:838,y:394,busy:null,spark:0}];
+  var LANE={queued:BOARD.y+78, running:BOARD.y+134, done:BOARD.y+190};
+  var DONE_X=BOARD.x+BOARD.w-44;
+
+  function q(p0,c,p1,t){var u=1-t;return{x:u*u*p0.x+2*u*t*c.x+t*t*p1.x, y:u*u*p0.y+2*u*t*c.y+t*t*p1.y};}
+  var P={};
+  (function(){
+    var u={x:NODE.user.x,y:NODE.user.y}, m={x:NODE.manager.x,y:NODE.manager.y};
+    P.intake={p0:u, c:{x:(u.x+m.x)/2,y:u.y-28}, p1:m};
+    P.toboard={p0:m, c:{x:(m.x+BOARD_IN.x)/2,y:m.y+30}, p1:BOARD_IN};
+    P.dispatch=WORKERS.map(function(w){return{p0:BOARD_OUT, c:{x:(BOARD_OUT.x+w.x)/2,y:(BOARD_OUT.y+w.y)/2-42}, p1:{x:w.x,y:w.y}};});
+    P.ret=WORKERS.map(function(w){return{p0:{x:w.x,y:w.y}, c:{x:(BOARD_OUT.x+w.x)/2,y:(BOARD_OUT.y+w.y)/2+42}, p1:BOARD_OUT};});
+  })();
+
+  var idSeq=0, tasks=[], counts={queued:0,running:0,done:0}, sparks=[];
+  var DUR={intake:1200,toboard:1100,dispatch:1100,working:2800,ret:1100,doneflash:950};
+  var spawnTimer=350, now=0, last=0, running=true;
+  var seed=1337; function rand(){seed=(seed*1664525+1013904223)&0x7fffffff;return seed/0x7fffffff;}
+
+  function spawn(){tasks.push({id:++idSeq,phase:'intake',t:0,worker:-1,pos:{x:P.intake.p0.x,y:P.intake.p0.y}});}
+  function freeWorker(){for(var i=0;i<WORKERS.length;i++) if(WORKERS[i].busy===null) return i; return -1;}
+
+  function update(dt){
+    if(running && tasks.filter(function(x){return x.phase!=='gone';}).length<9){
+      spawnTimer-=dt; if(spawnTimer<=0){spawn(); spawnTimer=1700+(idSeq%3)*280;}
+    }
+    for(var i=0;i<tasks.length;i++){
+      var k=tasks[i]; if(k.phase==='gone') continue;
+      k.t += dt/DUR[k.phase==='queued'?'toboard':k.phase];
+      if(k.phase==='intake'){ k.pos=q(P.intake.p0,P.intake.c,P.intake.p1,ease(Math.min(k.t,1))); if(k.t>=1){k.phase='toboard';k.t=0;} }
+      else if(k.phase==='toboard'){ k.pos=q(P.toboard.p0,P.toboard.c,P.toboard.p1,ease(Math.min(k.t,1))); if(k.t>=1){k.phase='queued';k.t=0;counts.queued++;} }
+      else if(k.phase==='queued'){ var wi=freeWorker(); if(wi>=0){k.worker=wi;WORKERS[wi].busy=k.id;counts.queued--;counts.running++;k.phase='dispatch';k.t=0;} }
+      else if(k.phase==='dispatch'){ var pa=P.dispatch[k.worker]; k.pos=q(pa.p0,pa.c,pa.p1,ease(Math.min(k.t,1))); if(k.t>=1){k.phase='working';k.t=0;} }
+      else if(k.phase==='working'){ var w=WORKERS[k.worker]; k.pos={x:w.x,y:w.y}; w.spark=1; if(k.t>=1){k.phase='ret';k.t=0;} }
+      else if(k.phase==='ret'){ var pb=P.ret[k.worker]; k.pos=q(pb.p0,pb.c,pb.p1,ease(Math.min(k.t,1))); if(k.t>=1){var ww=WORKERS[k.worker];ww.busy=null;ww.spark=0;counts.running--;counts.done++;k.phase='doneflash';k.t=0;} }
+      else if(k.phase==='doneflash'){ if(k.t>=1) k.phase='gone'; }
+    }
+    WORKERS.forEach(function(w){ if(w.busy===null) w.spark=Math.max(0,w.spark-dt/400); });
+    for(var j=0;j<WORKERS.length;j++){
+      var wj=WORKERS[j];
+      if(wj.busy!==null && running){
+        wj.emit=(wj.emit||0)-dt;
+        if(wj.emit<=0){ wj.emit=90; sparks.push({x:wj.x+(rand()-.5)*24, y:wj.y-8, vx:(rand()-.5)*.05, vy:-0.09-rand()*0.08, life:1, size:1+rand()*1.3}); }
+      }
+    }
+    for(var s=sparks.length-1;s>=0;s--){ var sp=sparks[s]; sp.x+=sp.vx*dt; sp.y+=sp.vy*dt; sp.vy+=0.00016*dt; sp.life-=dt/850; if(sp.life<=0) sparks.splice(s,1); }
+    for(var r=tasks.length-1;r>=0;r--) if(tasks[r].phase==='gone') tasks.splice(r,1);
+  }
+
+  function rrect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+  function drawTrack(p){
+    ctx.save(); ctx.strokeStyle=C.rule; ctx.lineWidth=1; ctx.setLineDash([2,3.5]);
+    ctx.beginPath(); ctx.moveTo(p.p0.x,p.p0.y); ctx.quadraticCurveTo(p.c.x,p.c.y,p.p1.x,p.p1.y); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCard(n,active){
+    var x=n.x-n.w/2, y=n.y-n.h/2;
+    ctx.save();
+    ctx.fillStyle=C.paper; rrect(x,y,n.w,n.h,3); ctx.fill();
+    ctx.lineWidth=active?2:1.2; ctx.strokeStyle=active?C.ink:C.muted; rrect(x,y,n.w,n.h,3); ctx.stroke();
+    ctx.textAlign='center'; ctx.fillStyle=C.ink; ctx.font='700 14px '+MONO; ctx.fillText(n.label,n.x,n.y-1);
+    ctx.fillStyle=C.muted; ctx.font='10px '+MONO; ctx.fillText(n.sub,n.x,n.y+16);
+    ctx.restore();
+  }
+
+  var ANVIL=new Path2D('M2 11 16 7 57 7 57 14 39 14 39 22 48 22 51 30 13 30 16 22 25 22 25 14 16 14Z');
+  function drawAnvil(w,i){
+    var busy=w.busy!==null;
+    ctx.save(); ctx.translate(w.x,w.y);
+    var sc=1.15;
+    ctx.save(); ctx.translate(-29.5*sc,-18.5*sc); ctx.scale(sc,sc);
+    if(busy){ ctx.fillStyle=C.ink; ctx.fill(ANVIL); }
+    else { ctx.fillStyle=C.paper; ctx.fill(ANVIL); ctx.lineWidth=1/sc; ctx.strokeStyle=C.faint; ctx.stroke(ANVIL); }
+    ctx.restore();
+    ctx.textAlign='center';
+    ctx.fillStyle=busy?C.ink:C.muted; ctx.font='700 11px '+MONO; ctx.fillText('WORKER '+(i+1),0,36);
+    ctx.font='10px '+MONO; ctx.fillStyle=busy?C.ink:C.faint;
+    ctx.fillText(busy?('T-'+String(w.busy).padStart(3,'0')):'idle',0,50);
+    ctx.restore();
+  }
+
+  function drawSquare(cx,cy,s,mode){
+    var x=cx-s/2, y=cy-s/2;
+    ctx.save();
+    ctx.fillStyle=C.paper; rrect(x,y,s,s,2); ctx.fill();
+    if(mode==='done'){ ctx.fillStyle=C.ink; rrect(x,y,s,s,2); ctx.fill(); }
+    else if(mode==='running'){
+      ctx.save(); rrect(x,y,s,s,2); ctx.clip(); ctx.strokeStyle=C.ink; ctx.lineWidth=1;
+      for(var d=-s; d<s; d+=3){ ctx.beginPath(); ctx.moveTo(x+d,y+s); ctx.lineTo(x+d+s,y); ctx.stroke(); }
+      ctx.restore();
+    }
+    ctx.lineWidth=1.3; ctx.strokeStyle=C.ink; rrect(x,y,s,s,2); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawGlyph(cx,cy,state){ drawSquare(cx,cy,11,state); }
+
+  function drawBoard(){
+    var x=BOARD.x,y=BOARD.y,w=BOARD.w,h=BOARD.h;
+    ctx.save();
+    ctx.fillStyle=C.paper; rrect(x,y,w,h,3); ctx.fill();
+    ctx.lineWidth=1.2; ctx.strokeStyle=C.ink; rrect(x,y,w,h,3); ctx.stroke();
+    ctx.textAlign='left'; ctx.fillStyle=C.muted; ctx.font='9px '+MONO; ctx.fillText('SKYFORGE · BOARD',x+14,y+20);
+    ctx.textAlign='right'; ctx.fillText((counts.queued+counts.running)+' LIVE',x+w-14,y+20);
+    ctx.strokeStyle=C.rule; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+12,y+30); ctx.lineTo(x+w-12,y+30); ctx.stroke();
+    var lanes=[['queued','QUEUED',LANE.queued],['running','RUNNING',LANE.running],['done','DONE',LANE.done]];
+    for(var i=0;i<lanes.length;i++){
+      var ky=lanes[i][2];
+      drawGlyph(x+22,ky,lanes[i][0]);
+      ctx.textAlign='left'; ctx.fillStyle=C.muted; ctx.font='9px '+MONO; ctx.fillText(lanes[i][1],x+40,ky+3);
+      ctx.textAlign='right'; ctx.fillStyle=C.ink; ctx.font='700 22px '+MONO;
+      ctx.fillText(String(counts[lanes[i][0]]).padStart(2,'0'),x+w-16,ky+8);
+      if(i<2){ ctx.strokeStyle=C.rule; ctx.setLineDash([1,3]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+14,ky+26); ctx.lineTo(x+w-14,ky+26); ctx.stroke(); ctx.setLineDash([]); }
+    }
+    ctx.restore();
+  }
+
+  function drawToken(k){
+    if(k.phase==='queued') return;               // represented on the board by its count
+    var pos=k.pos;
+    if(k.phase==='doneflash') pos={x:DONE_X,y:LANE.done};
+    var mode=(k.phase==='intake'||k.phase==='toboard')?'queued':(k.phase==='dispatch'||k.phase==='working')?'running':'done';
+    drawSquare(pos.x,pos.y,15,mode);
+    if(k.phase==='doneflash'){
+      ctx.save(); ctx.globalAlpha=Math.max(0,1-k.t); ctx.strokeStyle=C.ink; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(pos.x,pos.y,11.5+k.t*9,0,7); ctx.stroke(); ctx.restore();
+    }
+  }
+
+  function drawSpark(sp){ ctx.save(); ctx.globalAlpha=Math.max(0,sp.life); ctx.fillStyle=C.ink; ctx.beginPath(); ctx.arc(sp.x,sp.y,sp.size,0,7); ctx.fill(); ctx.restore(); }
+
+  function render(){
+    if(!canvas.width) return;
+    ctx.setTransform(scale,0,0,scale,0,0);
+    ctx.clearRect(0,0,LW,LH);
+    drawTrack(P.intake); drawTrack(P.toboard);
+    P.dispatch.forEach(drawTrack); P.ret.forEach(drawTrack);
+    var mgrActive=tasks.some(function(k){return k.phase==='toboard'||k.phase==='intake';});
+    drawCard(NODE.user,false); drawCard(NODE.manager,mgrActive);
+    drawBoard();
+    WORKERS.forEach(drawAnvil);
+    sparks.forEach(drawSpark);
+    tasks.forEach(function(k){ if(k.phase!=='gone') drawToken(k); });
+  }
+
+  function frame(ts){ if(!last) last=ts; var dt=Math.min(ts-last,50); last=ts; now+=dt; if(running) update(dt); render(); requestAnimationFrame(frame); }
+
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches){
+    running=false;
+    counts.done=5; counts.running=2; counts.queued=1;
+    WORKERS[0].busy=4; WORKERS[0].spark=1; WORKERS[2].busy=5; WORKERS[2].spark=1;
+    tasks.push({id:4,phase:'working',t:.4,worker:0,pos:{x:WORKERS[0].x,y:WORKERS[0].y}});
+    tasks.push({id:5,phase:'working',t:.6,worker:2,pos:{x:WORKERS[2].x,y:WORKERS[2].y}});
+  }
+
+  resize();
+  window.addEventListener('resize',function(){ DPR=Math.min(window.devicePixelRatio||1,2); resize(); });
+  if(window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe(canvas.parentElement);
+  requestAnimationFrame(frame);
+})();
+</script>
 </body>
 </html>

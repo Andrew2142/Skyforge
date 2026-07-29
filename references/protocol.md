@@ -38,6 +38,7 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
 - `files` are the paths a task declares it will create or edit; used for overlap gating in `guardrail` mode, ignored in `worktree` mode.
 - `blockedBy` lists task ids this task explicitly waits on — a **run-after dependency**, independent of file overlap. It stays out of `ready` until every listed id is `done`, in *both* modes. Absent/empty means no dependency. Set with `--blocked-by` on `add`/`set` (`--blocked-by ""` clears it).
 - Task goals and final reports live in `.skyforge/tasks/<id>.md`, not in the JSON (keeps the JSON small and the reports readable).
+- A read-only live viewer of this board is available separately: `scripts/dashboard.mjs` serves a themed task **list** at `http://localhost:4788` that auto-polls `board.json`. It only ever reads the board — `board.mjs` remains its sole writer.
 
 ## Concurrency modes
 
@@ -87,6 +88,7 @@ Launch options:
 - `guardrail` mode, file-editing task → no isolation; the worker edits the working tree, so dispatch only when `board.mjs ready` clears it, and tell the worker to stay within its declared **coarse area** (it resolves the exact files itself).
 - Read-only research task → no isolation, in either mode.
 - Always `subagent_type: "skyforge-worker"`.
+- Always set the Agent tool `description` to `T-00N <2–4 word label>` (e.g. `T-003 payment settlement fixes`). This is the worker's display name in the UI and completion notifications, so it MUST start with the task id — keep the same id on re-dispatch; do not prefix "Resume …" or drop the id.
 - Launch independent workers in one message (concurrent). Concurrency is capped by the Agent tool; excess workers queue — leave those board entries `queued` and note it to the user.
 
 ## Completion-report format

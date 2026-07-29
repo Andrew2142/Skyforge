@@ -74,6 +74,12 @@ function parseFiles(v) {
   if (!v || v === true) return [];
   return String(v).split(',').map((s) => s.trim()).filter(Boolean);
 }
+// Task ids for --blocked-by: accept either commas or whitespace as separators
+// (paths in --files can contain spaces, so those stay comma-only via parseFiles).
+function parseIds(v) {
+  if (!v || v === true) return [];
+  return String(v).split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+}
 function norm(p) {
   return p.replace(/^\.\//, '').replace(/\/+$/, '').replace(/\/\*+$/, '');
 }
@@ -172,7 +178,7 @@ function cmdAdd(flags) {
   board.seq += 1;
   const id = `T-${String(board.seq).padStart(3, '0')}`;
   const files = parseFiles(flags.files);
-  const blockedBy = parseFiles(flags['blocked-by']);
+  const blockedBy = parseIds(flags['blocked-by']);
   const task = {
     id,
     title: String(flags.title),
@@ -223,7 +229,7 @@ function cmdSet(positionals, flags) {
   if (flags.summary && flags.summary !== true) t.resultSummary = String(flags.summary);
   if (flags.title && flags.title !== true) t.title = String(flags.title);
   if ('files' in flags) t.files = parseFiles(flags.files);
-  if ('blocked-by' in flags) t.blockedBy = parseFiles(flags['blocked-by']);
+  if ('blocked-by' in flags) t.blockedBy = parseIds(flags['blocked-by']);
   t.updatedAt = nowISO();
   save(board);
   console.log(`${id} -> status=${t.status}${t.agentId ? ` agent=${t.agentId}` : ''}`);
