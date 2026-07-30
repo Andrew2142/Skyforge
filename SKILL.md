@@ -1,7 +1,7 @@
 ---
 name: skyforge
 description: This skill should be used when the user wants to run Skyforge as a virtual dev-shop — e.g. "skyforge", "skyforge manager", "delegate this to the team", "spin up the factory", "hand these tasks to the workers", "give me a status report", "how's the factory doing", or "what are the agents working on". It turns the assistant into a manager that breaks work into tasks, dispatches background worker agents, tracks them on a durable board, and reports status on demand.
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Skyforge — Virtual Dev-Shop Manager
@@ -42,7 +42,15 @@ Follow this loop. Step 2 waits for approval only when auto mode is off; steps 3�
 
 ### 1. Intake
 
-**On the first spin-up in a chat, ask the user two quick toggles**, then initialise the board (idempotent):
+**First, self-update.** On the first spin-up in a chat, run this once, before anything else:
+
+```
+node <skill-dir>/scripts/update.mjs --quiet
+```
+
+It self-throttles to one network check a day, prints nothing when there is nothing to say, and always exits 0 — offline or not, it never blocks the factory. If it does print a line, pass that line straight to the user. When it says to **restart the session**, tell the user before taking any task: the SKILL.md in context is still the old one, so the new instructions are not live until they restart.
+
+**Then ask the user two quick toggles**, and initialise the board (idempotent):
 
 - **Auto mode?** On = dispatch automatically without waiting for approval; off = propose and wait first. (See **Auto mode**.)
 - **Worktree isolation?** On = each file-editing task gets its own git worktree; off = guardrail, where workers edit the tree directly with file-overlap queueing. (See **Concurrency modes**.)
@@ -127,6 +135,7 @@ Live workers are bound to the session that launched them — they **do not** sur
 
 ## Rules
 
+- Run `scripts/update.mjs --quiet` once per spin-up, before intake. Never treat its failure as fatal, and never re-run it mid-session to "check again" — it is throttled on purpose.
 - Route all board changes through `scripts/board.mjs` — never hand-edit `board.json`.
 - **Never investigate the codebase or plan a task's approach before dispatching** — hand the goal to a worker and let it plan. Manager-side investigation is what stalls the line.
 - **One request → one task → one worker.** Do not split a request into subtasks; the worker breaks the work down itself.
@@ -154,6 +163,16 @@ Live workers are bound to the session that launched them — they **do not** sur
 | `board.mjs note <id> "text"` | Append text to the task's brief file |
 | `board.mjs report` | Grouped human-readable status |
 
+**Self-update (separate script):** `node <skill-dir>/scripts/update.mjs` syncs the installed skill, scripts, and worker agent with the upstream repo.
+
+| Flag | Effect |
+|---|---|
+| *(none)* | Check at most once a day; apply an update if there is one |
+| `--quiet` | Print only when something actually changed — use this at spin-up |
+| `--check` | Report what would change; never writes |
+| `--force` | Ignore the once-a-day throttle |
+| `--overwrite-local` | Replace installed files you have edited locally (held back by default) |
+
 **Live dashboard (separate script, read-only):** `node <skill-dir>/scripts/dashboard.mjs` serves a themed, auto-refreshing **list** of the board at `http://localhost:4788` — it reuses the running instance if the port is already bound, and never writes `board.json`. Hand the URL to the user for status on demand (step 5).
 
 ## Additional resources
@@ -161,4 +180,5 @@ Live workers are bound to the session that launched them — they **do not** sur
 - **`references/protocol.md`** — full board schema, the worker-prompt template, the completion-report format, and edge cases (dead worker, blocked task, re-dispatch).
 - **`scripts/board.mjs`** — the ledger CLI (the only writer of the board).
 - **`scripts/dashboard.mjs`** — read-only live board: a themed task **list** served at `http://localhost:4788`, auto-polling `.skyforge/board.json` (never writes it).
+- **`scripts/update.mjs`** — the self-updater: pulls the latest skill, scripts, and worker agent from the upstream repo, once a day, keeping any file you edited locally. Install record lives at `~/.claude/.skyforge-update.json`.
 - **Worker agent** — `~/.claude/agents/skyforge-worker.md` defines the `skyforge-worker` subagent and its completion-report format.

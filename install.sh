@@ -37,10 +37,16 @@ cp "$SRC/SKILL.md"                  "$SKILL_DIR/SKILL.md"
 cp "$SRC/references/protocol.md"    "$SKILL_DIR/references/protocol.md"
 cp "$SRC/scripts/board.mjs"         "$SKILL_DIR/scripts/board.mjs"
 cp "$SRC/scripts/dashboard.mjs"     "$SKILL_DIR/scripts/dashboard.mjs"
+cp "$SRC/scripts/update.mjs"        "$SKILL_DIR/scripts/update.mjs"
 cp "$SRC/agents/skyforge-worker.md" "$AGENTS_DIR/skyforge-worker.md"
+
+# No install record is written here on purpose: the first spin-up's update check
+# reconciles against upstream and writes it, which also brings a stale clone
+# straight up to date.
 
 say ""
 say "✓ Skill installed   → $SKILL_DIR"
 say "✓ Worker agent      → $AGENTS_DIR/skyforge-worker.md"
+say "✓ Auto-update       → checks once a day on spin-up"
 say ""
 say "Start a new Claude Code session, then say:  \"spin up the factory\""
