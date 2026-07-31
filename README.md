@@ -60,6 +60,29 @@ cp agents/skyforge-worker.md ~/.claude/agents/
 ```
 </details>
 
+## Staying up to date
+
+Skyforge updates itself. The first time you spin it up each day it checks this
+repo, and if `main` has moved it pulls the new skill, scripts, and worker agent
+into place — then tells you to restart the session so the new instructions load.
+
+It is built to stay out of your way: the check is throttled to once every 24
+hours, times out after 5 seconds, and never fails a spin-up — if you are offline
+it says so in one line and the factory starts anyway. Files are fetched pinned to
+one commit and written only once **all** of them download cleanly, so a dropped
+connection can never leave you half-updated. **Any file you have edited yourself
+is kept, not overwritten** — it says which, and `--overwrite-local` is how you
+opt in to replacing it.
+
+Run it yourself any time:
+
+```sh
+node ~/.claude/skills/skyforge/scripts/update.mjs --check   # what would change?
+node ~/.claude/skills/skyforge/scripts/update.mjs --force   # update now
+```
+
+What is installed is recorded in `~/.claude/.skyforge-update.json`.
+
 ## Use
 
 Trigger it in natural language. The manager listens for intent, not exact words:
@@ -103,6 +126,7 @@ SKILL.md                  the skill definition (the manager's operating loop)
 references/protocol.md    board schema, worker-prompt template, report format, edge cases
 scripts/board.mjs         the ledger CLI, the only writer of .skyforge/board.json
 scripts/dashboard.mjs     read-only live board served at http://localhost:4788
+scripts/update.mjs        daily self-updater; keeps locally-edited files
 agents/skyforge-worker.md the background worker subagent + its completion-report format
 docs/index.html           a standalone landing page describing the skill
 ```
