@@ -23,8 +23,12 @@ Three roles, one calm loop:
   repository, written only through `scripts/board.mjs`. It survives restarts, so
   the shop always remembers where it stood.
 
-Every task lives in exactly one of five states: `queued`, `running`, `done`,
-`blocked`, `failed`.
+Every task on the line lives in exactly one of five states: `queued`, `running`,
+`done`, `blocked`, `failed`. A sixth, `proposed`, is the **backlog**: follow-ups
+the workers suggested, parked and never dispatched until you promote one.
+
+While a task runs, its worker posts a one-line progress update at each milestone
+— so a fifteen-minute job shows movement on the board instead of a frozen row.
 
 ## Install
 
@@ -79,9 +83,11 @@ ready for review, plus a link to the live board.
 
 `scripts/dashboard.mjs` serves a themed, auto-refreshing list of every task at
 `http://localhost:4788` — one row per task, sorted running → queued → done, with
-status pills, agent ids, one-line summaries, and each queued task's blocker. It
-reads `.skyforge/board.json` and never writes it, so it can run alongside the
-manager without touching the ledger.
+status pills, agent ids, one-line summaries, and each queued task's blocker.
+Each running worker's live progress line sits under its row, and proposed
+follow-ups collect in a **Backlog** section below the line. It reads
+`.skyforge/board.json` and never writes it, so it can run alongside the manager
+without touching the ledger.
 
 ```sh
 node ~/.claude/skills/skyforge/scripts/dashboard.mjs   # SKYFORGE_DASH_PORT to override 4788
@@ -110,12 +116,19 @@ docs/index.html           a standalone landing page describing the skill
 | `node board.mjs init [--mode worktree\|guardrail] [--auto on\|off]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets mode + auto |
 | `node board.mjs mode [--set worktree\|guardrail]` | Show or change the concurrency mode |
 | `node board.mjs auto [--set on\|off]` | Show or change auto mode (dispatch without approval) |
-| `node board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "src/area"] [--blocked-by "T-00N"]` | Add a task; prints its id. `--blocked-by` = run-after dependency ids |
+| `node board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "src/area"] [--blocked-by "T-00N"] [--from T-00N]` | Add a task; prints its id. `--blocked-by` = run-after dependency ids; `--from` files it on the backlog as a follow-up of that task |
 | `node board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."] [--blocked-by "..."]` | Update a task (`--blocked-by ""` clears the dependency) |
-| `node board.mjs ready` | Queued tasks safe to dispatch now (mode-aware); reports each held task's blocker(s) |
+| `node board.mjs progress <id> "..."` | The worker's current-activity line, shown live on the board (replaces the previous one) |
+| `node board.mjs promote <id> [<id>...]` | Backlog → queued. Yours to run; the manager never promotes for you |
+| `node board.mjs ready` | Queued tasks safe to dispatch now (mode-aware); reports each held task's blocker(s). Never returns backlog tasks |
 | `node board.mjs list [--status <s>]` | Compact task table |
 | `node board.mjs get <id>` | Full JSON for one task |
 | `node board.mjs note <id> "text"` | Append text to the task's brief file |
 | `node board.mjs report` | Grouped human-readable status |
+
+Mutating commands take a short-lived lock on `.skyforge/board.lock`, so parallel
+calls (a batch of dispatches, workers posting progress) can't lose each other's
+writes. Set `SKYFORGE_ROOT=<project root>` to reach the ledger from another
+working directory — a worker inside an isolated worktree needs this.
 
 Requires Node.js (uses only built-in modules, no dependencies).

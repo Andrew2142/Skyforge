@@ -5,23 +5,34 @@
 //   node board.mjs init [--mode worktree|guardrail] [--auto on|off]
 //   node board.mjs mode [--set worktree|guardrail]
 //   node board.mjs auto [--set on|off]
-//   node board.mjs add --title "..." [--assignee skyforge-worker] [--parent T-003] [--brief "..."] [--files "src/a.ts,src/api"] [--blocked-by "T-001,T-002"]
+//   node board.mjs add --title "..." [--assignee skyforge-worker] [--parent T-003] [--brief "..."] [--files "src/a.ts,src/api"] [--blocked-by "T-001,T-002"] [--proposed] [--from T-003]
 //   node board.mjs set <id> --status running [--agent <agentId>] [--summary "..."] [--title "..."] [--files "..."] [--blocked-by "T-001"]
 //   node board.mjs list [--status running]
 //   node board.mjs get <id>
 //   node board.mjs ready         # queued tasks safe to dispatch now (mode-aware); names each blocked task's blocker(s)
 //   node board.mjs report
 //   node board.mjs note <id> "text appended to the task brief"
+//   node board.mjs progress <id> "what the worker is doing right now"
+//   node board.mjs promote <id> [<id>...]   # backlog (proposed) -> queued
 // All paths are relative to the current working directory (per-project ledger).
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOT = join(process.cwd(), '.skyforge');
+// The ledger lives in the project directory. SKYFORGE_ROOT overrides the cwd,
+// which a worker in an isolated git worktree needs: its cwd is the worktree, so
+// a plain relative lookup would find (or create) a second, empty board there.
+const ROOT = join(process.env.SKYFORGE_ROOT || process.cwd(), '.skyforge');
 const BOARD = join(ROOT, 'board.json');
 const TASKS = join(ROOT, 'tasks');
-const STATUSES = ['queued', 'running', 'done', 'failed', 'blocked'];
+const LOCK = join(ROOT, 'board.lock');
+// `proposed` is backlog: a worker-suggested follow-up parked on the board. It is
+// never dispatched — `ready` only ever considers `queued` — until the user runs
+// `promote`, which moves it to `queued`.
+const STATUSES = ['proposed', 'queued', 'running', 'done', 'failed', 'blocked'];
 const MODES = ['worktree', 'guardrail'];
+const LOCK_STALE_MS = 30_000; // a lock older than this belonged to a dead process
+const LOCK_WAIT_MS = 5_000;   // give up rather than hang the manager forever
 
 function fail(msg) {
   console.error(`board: ${msg}`);
@@ -30,6 +41,18 @@ function fail(msg) {
 
 function nowISO() {
   return new Date().toISOString();
+}
+
+// Compact relative age, so a progress line reads "3m ago" rather than a stamp.
+function ago(iso) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 45) return 'just now';
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
 }
 
 function truthy(v) {
@@ -59,11 +82,75 @@ function load() {
 }
 
 function save(board) {
-  // Atomic write: write to a temp file then rename over the target.
-  const tmp = `${BOARD}.tmp`;
+  // Atomic write: write to a temp file then rename over the target. The temp
+  // name carries the pid so two concurrent writers can never share a scratch
+  // file (the lock below serialises them, but a stale-lock takeover must not
+  // be able to interleave half-written JSON).
+  const tmp = `${BOARD}.${process.pid}.tmp`;
   writeFileSync(tmp, JSON.stringify(board, null, 2) + '\n');
   renameSync(tmp, BOARD);
 }
+
+// --- cross-process lock ------------------------------------------------------
+// board.mjs runs as a separate short-lived process per call, and several calls
+// genuinely overlap: the manager dispatches a batch of workers in one message
+// (parallel Bash), and workers post progress while it does. Without a lock,
+// load -> mutate -> save from two processes silently loses one of the updates.
+// mkdir is atomic on POSIX, so the directory itself is the mutex.
+let lockHeld = false;
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function releaseLock() {
+  if (!lockHeld) return;
+  lockHeld = false;
+  try { rmSync(LOCK, { recursive: true, force: true }); } catch { /* already gone */ }
+}
+
+function acquireLock() {
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  for (;;) {
+    try {
+      mkdirSync(LOCK); // fails with EEXIST if another process holds it
+      lockHeld = true;
+      try { writeFileSync(join(LOCK, 'owner'), `${process.pid} ${nowISO()}\n`); } catch { /* advisory only */ }
+      return;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      // A process killed mid-mutation leaves the directory behind; reap it once
+      // it is older than any plausible in-flight write.
+      let age = 0;
+      try {
+        age = Date.now() - statSync(LOCK).mtimeMs;
+      } catch {
+        continue; // vanished between mkdir and stat — just retry
+      }
+      if (age > LOCK_STALE_MS) {
+        try { rmSync(LOCK, { recursive: true, force: true }); } catch { /* lost the race */ }
+        continue;
+      }
+      if (Date.now() >= deadline) fail(`board is locked by another process (${LOCK}). Retry, or delete that directory if it is stale.`);
+      sleepSync(50);
+    }
+  }
+}
+
+// Every command that mutates the board runs its whole read-modify-write here.
+function withLock(fn) {
+  ensureRoot();
+  acquireLock();
+  try {
+    return fn();
+  } finally {
+    releaseLock();
+  }
+}
+
+// fail() and any crash exit via process.exit, which skips the finally above —
+// so release on the way out too, or the next call waits out the stale timeout.
+process.on('exit', releaseLock);
 
 function taskFile(id) {
   return join(TASKS, `${id}.md`);
@@ -179,17 +266,25 @@ function cmdAdd(flags) {
   const id = `T-${String(board.seq).padStart(3, '0')}`;
   const files = parseFiles(flags.files);
   const blockedBy = parseIds(flags['blocked-by']);
+  // --from T-003 records which task suggested this follow-up, and implies
+  // --proposed: a worker's FOLLOW-UP lands in the backlog, never on the line.
+  const origin = flags.from && flags.from !== true ? String(flags.from) : null;
+  if (origin && !board.tasks.some((t) => t.id === origin)) fail(`--from ${origin}: no such task`);
+  const status = (origin || 'proposed' in flags) ? 'proposed' : 'queued';
   const task = {
     id,
     title: String(flags.title),
     assignee: flags.assignee && flags.assignee !== true ? String(flags.assignee) : 'skyforge-worker',
     agentId: null,
-    status: 'queued',
+    status,
     parent: flags.parent && flags.parent !== true ? String(flags.parent) : null,
+    origin,
     files,
     blockedBy,
     createdAt: nowISO(),
     updatedAt: nowISO(),
+    progress: '',
+    progressAt: null,
     resultSummary: '',
   };
   board.tasks.push(task);
@@ -201,6 +296,7 @@ function cmdAdd(flags) {
     + `- Status: ${task.status}\n`
     + `- Assignee: ${task.assignee}\n`
     + (task.parent ? `- Parent: ${task.parent}\n` : '')
+    + (origin ? `- Proposed by: ${origin}\n` : '')
     + (files.length ? `- Files: ${files.join(', ')}\n` : '')
     + (blockedBy.length ? `- Blocked by: ${blockedBy.join(', ')}\n` : '')
     + `- Created: ${task.createdAt}\n\n`
@@ -223,6 +319,12 @@ function cmdSet(positionals, flags) {
   const t = findTask(board, id);
   if (flags.status) {
     if (!STATUSES.includes(flags.status)) fail(`status must be one of: ${STATUSES.join(', ')}`);
+    // Entering `running` starts a fresh attempt: drop any progress line left
+    // over from a previous worker so a re-dispatch never shows stale activity.
+    if (flags.status === 'running' && t.status !== 'running') {
+      t.progress = '';
+      t.progressAt = null;
+    }
     t.status = flags.status;
   }
   if (flags.agent && flags.agent !== true) t.agentId = String(flags.agent);
@@ -233,6 +335,38 @@ function cmdSet(positionals, flags) {
   t.updatedAt = nowISO();
   save(board);
   console.log(`${id} -> status=${t.status}${t.agentId ? ` agent=${t.agentId}` : ''}`);
+}
+
+// Workers call this mid-flight so a long task is not a black box between
+// `running` and `done` — the dashboard renders it live under the running row.
+// It is a single current-activity line, not a log: each call replaces the last.
+function cmdProgress(positionals) {
+  const id = positionals[0];
+  const text = positionals.slice(1).join(' ').trim();
+  if (!id || !text) fail('progress requires: board.mjs progress <id> "what you are doing now"');
+  const board = load();
+  const t = findTask(board, id);
+  t.progress = text;
+  t.progressAt = nowISO();
+  t.updatedAt = t.progressAt;
+  save(board);
+  console.log(`${id} ⟳ ${text}`);
+}
+
+// Backlog -> line. The only way a `proposed` follow-up becomes dispatchable.
+function cmdPromote(positionals) {
+  if (positionals.length === 0) fail('promote requires at least one task id, e.g. "board.mjs promote T-007"');
+  const board = load();
+  const promoted = [];
+  for (const id of positionals) {
+    const t = findTask(board, id);
+    if (t.status !== 'proposed') fail(`${id} is ${t.status}, not proposed — only backlog tasks can be promoted`);
+    t.status = 'queued';
+    t.updatedAt = nowISO();
+    promoted.push(t);
+  }
+  save(board);
+  for (const t of promoted) console.log(`${t.id} -> queued  ${t.title}`);
 }
 
 function cmdList(flags) {
@@ -263,6 +397,8 @@ function cmdGet(positionals) {
 //     selected earlier in this batch
 // Every queued task is reported: READY, or BLOCKED with the specific id(s)
 // holding it — so the manager states the blocker from the board, not from memory.
+// `proposed` (backlog) tasks are deliberately invisible here: they are not work
+// until the user promotes them.
 function cmdReady() {
   const board = load();
   const queued = board.tasks.filter((t) => t.status === 'queued');
@@ -314,8 +450,9 @@ function cmdReport() {
   const total = board.tasks.length;
   console.log(`Skyforge factory — ${total} task${total === 1 ? '' : 's'}  ·  mode: ${board.mode}  ·  auto: ${board.auto ? 'on' : 'off'}`);
   console.log('='.repeat(48));
+  // The line first; the backlog is listed after it, as work not yet started.
   const order = ['running', 'blocked', 'queued', 'failed', 'done'];
-  const icon = { running: '🔧', blocked: '⛔', queued: '⏳', failed: '❌', done: '✅' };
+  const icon = { running: '🔧', blocked: '⛔', queued: '⏳', failed: '❌', done: '✅', proposed: '💡' };
   for (const status of order) {
     const list = by[status] || [];
     if (list.length === 0) continue;
@@ -325,6 +462,9 @@ function cmdReport() {
       console.log(`  ${t.id}  ${t.title}${agent}`);
       if (board.mode === 'guardrail' && t.files && t.files.length && (status === 'running' || status === 'queued')) {
         console.log(`        files: ${t.files.join(', ')}`);
+      }
+      if (status === 'running' && t.progress) {
+        console.log(`        ⟳ ${t.progress}${t.progressAt ? `  (${ago(t.progressAt)})` : ''}`);
       }
       if (status === 'queued') {
         const { deps, fileHits } = taskBlockers(board, t, running, doneIds);
@@ -336,27 +476,42 @@ function cmdReport() {
       if (t.resultSummary) console.log(`        ↳ ${t.resultSummary}`);
     }
   }
+
+  const backlog = by.proposed || [];
+  if (backlog.length) {
+    console.log(`\n${icon.proposed} BACKLOG (${backlog.length})  — promote with: board.mjs promote <id>`);
+    for (const t of backlog) {
+      console.log(`  ${t.id}  ${t.title}${t.origin ? `  (from ${t.origin})` : ''}`);
+    }
+  }
+
   const open = (by.running.length + by.queued.length + by.blocked.length);
-  console.log(`\n${open} open, ${by.done.length} done, ${by.failed.length} failed.`);
+  console.log(`\n${open} open, ${by.done.length} done, ${by.failed.length} failed`
+    + `${backlog.length ? `, ${backlog.length} in backlog` : ''}.`);
 }
 
 // --- dispatch ----------------------------------------------------------------
 const [, , cmd, ...rest] = process.argv;
 const { positionals, flags } = parseArgs(rest);
 
+// Mutating commands run inside withLock so concurrent invocations (a batch of
+// dispatches, a worker posting progress) can never lose each other's writes.
+// Read-only commands skip the lock and simply tolerate a momentarily older read.
 switch (cmd) {
-  case 'init': cmdInit(flags); break;
-  case 'mode': cmdMode(flags); break;
-  case 'auto': cmdAuto(flags); break;
-  case 'add': cmdAdd(flags); break;
-  case 'set': cmdSet(positionals, flags); break;
+  case 'init': withLock(() => cmdInit(flags)); break;
+  case 'mode': withLock(() => cmdMode(flags)); break;
+  case 'auto': withLock(() => cmdAuto(flags)); break;
+  case 'add': withLock(() => cmdAdd(flags)); break;
+  case 'set': withLock(() => cmdSet(positionals, flags)); break;
+  case 'progress': withLock(() => cmdProgress(positionals)); break;
+  case 'promote': withLock(() => cmdPromote(positionals)); break;
+  case 'note': withLock(() => cmdNote(positionals)); break;
   case 'list': cmdList(flags); break;
   case 'get': cmdGet(positionals); break;
   case 'ready': cmdReady(); break;
-  case 'note': cmdNote(positionals); break;
   case 'report': cmdReport(); break;
   default:
-    console.log('board.mjs commands: init | mode | auto | add | set | list | get | ready | note | report');
+    console.log('board.mjs commands: init | mode | auto | add | set | progress | promote | list | get | ready | note | report');
     if (cmd) fail(`unknown command "${cmd}"`);
 }
 
