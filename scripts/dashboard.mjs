@@ -16,7 +16,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PORT = Number(process.env.SKYFORGE_DASH_PORT) || 4788;
-const BOARD = join(process.cwd(), '.skyforge', 'board.json');
+const BOARD = join(process.env.SKYFORGE_ROOT || process.cwd(), '.skyforge', 'board.json');
 
 // 1. Fresh read on every request; tolerate a missing or half-written board.
 function readBoard() {
@@ -43,6 +43,7 @@ const CSS = `
   --fail:#9a3b3b; --fail-bg:#fbeeee; --fail-bd:#eccccc;
   --block:#8a6a1f;--block-bg:#f7f1e3;--block-bd:#e6d8b5;
   --queue:#6a6a6a;--queue-bg:#f2f2f2;--queue-bd:#dcdcdc;
+  --prop:#6b5b8a; --prop-bg:#f4f1f8; --prop-bd:#ddd5e8;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -108,6 +109,13 @@ td.status .age{
 }
 td.detail{font-size:.92rem; line-height:1.4; color:var(--muted); min-width:14rem;}
 td.detail .agent{font-family:var(--mono); font-size:.66rem; letter-spacing:.05em; text-transform:uppercase; color:var(--faint);}
+/* live progress — the worker's current activity, subdued under the agent id */
+td.detail .progress{
+  display:block; margin-top:.3rem; padding-left:.7rem; border-left:2px solid var(--run-bd);
+  font-family:var(--mono); font-size:.68rem; line-height:1.45; letter-spacing:.01em;
+  color:var(--run); text-transform:none; word-break:break-word;
+}
+td.detail .progress i{font-style:normal; color:var(--faint);}
 td.detail .waiting{font-family:var(--mono); font-size:.64rem; line-height:1.5; letter-spacing:.03em; color:var(--block);}
 td.detail .waiting.ready{color:var(--done);}
 td.detail .dash{color:var(--faint);}
@@ -124,10 +132,29 @@ td.detail .dash{color:var(--faint);}
 .pill--failed{color:var(--fail);    background:var(--fail-bg);  border-color:var(--fail-bd);}
 .pill--blocked{color:var(--block);  background:var(--block-bg); border-color:var(--block-bd);}
 .pill--queued{color:var(--queue);   background:var(--queue-bg); border-color:var(--queue-bd);}
+.pill--proposed{color:var(--prop);  background:var(--prop-bg);  border-color:var(--prop-bd);}
 .dot--running{background:var(--run);} .dot--done{background:var(--done);} .dot--failed{background:var(--fail);}
-.dot--blocked{background:var(--block);} .dot--queued{background:var(--queue);}
+.dot--blocked{background:var(--block);} .dot--queued{background:var(--queue);} .dot--proposed{background:var(--prop);}
 .pill--running .dot{animation:pulse 1.6s ease-in-out infinite;}
 @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.25;}}
+
+/* backlog — proposed follow-ups, set apart from the line as work not yet started */
+.backlog{margin-top:2.6rem;}
+.backlog h2{
+  font-family:var(--mono); font-weight:400; font-size:.66rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 .2rem; padding-bottom:.7rem; border-bottom:1px solid var(--ink);
+}
+.backlog .note{font-style:italic; font-size:.92rem; color:var(--muted); margin:.8rem 0 1rem;}
+.backlog ul{list-style:none; margin:0; padding:0;}
+.backlog li{display:flex; flex-wrap:wrap; align-items:baseline; gap:.7rem; padding:.55rem 0 .55rem .9rem;
+  border-bottom:1px dotted var(--rule); border-left:3px solid var(--prop-bd);}
+.backlog li:last-child{border-bottom:1px solid var(--rule);}
+.backlog .bid{font-family:var(--mono); font-size:.8rem; font-weight:700; letter-spacing:.05em;
+  font-variant-numeric:tabular-nums; color:var(--prop); white-space:nowrap;}
+.backlog .btitle{flex:1 1 14rem; font-size:1.02rem; line-height:1.35;}
+.backlog .bfrom{font-family:var(--mono); font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); white-space:nowrap;}
+.backlog .promote{font-family:var(--mono); font-size:.66rem; letter-spacing:.04em; color:var(--faint); margin:.9rem 0 0;}
+.backlog .promote code{background:var(--wash); border:1px solid var(--rule); border-radius:2px; padding:.1rem .35rem; color:var(--muted);}
 
 /* empty state + colophon */
 .empty{border:1px dashed var(--rule); border-radius:2px; padding:3rem 1.5rem; text-align:center; color:var(--muted); font-style:italic;}
@@ -152,7 +179,7 @@ td.detail .dash{color:var(--faint);}
 const APP = `
 (function(){
   var ORDER = ['running','blocked','queued','failed','done'];
-  var LABEL = {running:'Running',blocked:'Blocked',queued:'Queued',failed:'Failed',done:'Done'};
+  var LABEL = {running:'Running',blocked:'Blocked',queued:'Queued',failed:'Failed',done:'Done',proposed:'Backlog'};
   var POLL_MS = 4000;
   var lastJSON = '', lastOk = Date.now();
 
@@ -188,6 +215,14 @@ const APP = `
     return '<span class="pill pill--'+status+'"><span class="dot dot--'+status+'"></span>'+esc(status)+'</span>';
   }
 
+  // The worker's own mid-flight line (board.mjs progress), so a long task shows
+  // movement instead of sitting on an unchanging "running" row.
+  function progressLine(t){
+    if(!t.progress) return '';
+    return '<span class="progress">'+esc(t.progress)
+      +(t.progressAt?' <i>'+esc(relTime(t.progressAt))+'</i>':'')+'</span>';
+  }
+
   function row(t,ctx){
     var s=t.status;
 
@@ -201,7 +236,9 @@ const APP = `
     // DETAIL: agent (running) / waiting (queued) / summary (done,failed) / needs input (blocked)
     var detail='';
     if(s==='running'){
-      detail='<span class="agent">'+(t.agentId?'agent '+esc(shortAgent(t.agentId)):'in progress')+'</span>';
+      detail='<span class="agent">'+(t.agentId?'agent '+esc(shortAgent(t.agentId)):'in progress')+'</span>'+progressLine(t);
+    } else if(s==='blocked'&&t.progress&&!t.resultSummary){
+      detail='<span class="waiting">needs input</span>'+progressLine(t);
     } else if(s==='queued'){
       var b=blockers(ctx.board,t,ctx.claimers,ctx.doneIds);
       var why=[];
@@ -227,19 +264,23 @@ const APP = `
 
   function render(board){
     if(!board||!Array.isArray(board.tasks)) board={mode:'—',auto:false,tasks:[]};
-    var tasks=board.tasks.slice();
+    var all=board.tasks.slice();
+    // Proposed follow-ups are backlog, not factory floor — they get their own
+    // section below the ledger and are never mixed into the line.
+    var tasks=all.filter(function(t){return t.status!=='proposed';});
+    var backlog=all.filter(function(t){return t.status==='proposed';});
     var doneIds=new Set(tasks.filter(function(t){return t.status==='done';}).map(function(t){return t.id;}));
     var claimers=tasks.filter(function(t){return t.status==='running';});
     var ctx={board:board,doneIds:doneIds,claimers:claimers};
 
     // counts per status
-    var counts={running:0,blocked:0,queued:0,failed:0,done:0};
-    tasks.forEach(function(t){if(counts[t.status]!=null)counts[t.status]++;});
+    var counts={running:0,blocked:0,queued:0,failed:0,done:0,proposed:0};
+    all.forEach(function(t){if(counts[t.status]!=null)counts[t.status]++;});
 
     // header line: mode / auto / total, then the tallies
     document.getElementById('meta').innerHTML =
       'Mode <b>'+esc(board.mode||'—')+'</b> \\u00b7 Auto <b>'+(board.auto?'on':'off')+'</b> \\u00b7 <b>'+tasks.length+'</b> task'+(tasks.length===1?'':'s');
-    document.getElementById('tallies').innerHTML = ORDER.map(function(st){
+    document.getElementById('tallies').innerHTML = ORDER.concat(counts.proposed?['proposed']:[]).map(function(st){
       return '<span class="tally'+(counts[st]?'':' zero')+'"><span class="dot dot--'+st+'"></span>'+esc(LABEL[st])+' <b>'+counts[st]+'</b></span>';
     }).join('');
 
@@ -255,6 +296,24 @@ const APP = `
       host.innerHTML='<div class="ledger-scroll"><table>'
         +'<thead><tr><th>ID</th><th>Task</th><th class="c">Status</th><th>Detail</th></tr></thead>'
         +'<tbody>'+tasks.map(function(t){return row(t,ctx);}).join('')+'</tbody></table></div>';
+    }
+
+    // backlog: worker-proposed follow-ups, waiting to be promoted
+    var back=document.getElementById('backlog');
+    if(backlog.length===0){
+      back.innerHTML='';
+    } else {
+      backlog.sort(function(a,b){return String(a.id).localeCompare(String(b.id));});
+      back.innerHTML='<section class="backlog"><h2>Backlog \\u00b7 '+backlog.length+'</h2>'
+        +'<p class="note">Follow-ups the workers proposed. They sit here until you promote them \\u2014 nothing on this list is dispatched.</p>'
+        +'<ul>'+backlog.map(function(t){
+          return '<li><span class="bid">'+esc(t.id)+'</span>'
+            +'<span class="btitle">'+esc(t.title)+'</span>'
+            +(t.origin?'<span class="bfrom">from '+esc(t.origin)+'</span>':'')
+            +'</li>';
+        }).join('')+'</ul>'
+        +'<p class="promote">Promote with <code>board.mjs promote '+esc(backlog[0].id)+'</code></p>'
+        +'</section>';
     }
   }
 
@@ -302,6 +361,7 @@ function page(board) {
     + `</header>`
     + `<div class="line"><span class="meta" id="meta"></span><span class="tallies" id="tallies"></span></div>`
     + `<div id="list"></div>`
+    + `<div id="backlog"></div>`
     + `<div class="colophon"><span>Skyforge · board at .skyforge/board.json · read-only view</span>`
     + `<span><span id="live" class="live">● live</span> · refreshed <span id="stamp">—</span></span></div>`
     + `</div>`

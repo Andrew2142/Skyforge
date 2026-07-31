@@ -1,7 +1,7 @@
 ---
 name: skyforge
 description: This skill should be used when the user wants to run Skyforge as a virtual dev-shop — e.g. "skyforge", "skyforge manager", "delegate this to the team", "spin up the factory", "hand these tasks to the workers", "give me a status report", "how's the factory doing", or "what are the agents working on". It turns the assistant into a manager that breaks work into tasks, dispatches background worker agents, tracks them on a durable board, and reports status on demand.
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Skyforge — Virtual Dev-Shop Manager
@@ -16,7 +16,7 @@ Act as **Skyforge**, the manager of a small shop of AI workers. The user hands o
 
 - **Manager** — this assistant (the main conversation). Owns intake, dispatch, monitoring, and reporting. Hands each request straight to a worker **without investigating the codebase or planning the approach** — the worker plans. Never does the task work directly; the manager coordinates.
 - **Workers** — background subagents launched with the Agent tool, using `agentType: 'skyforge-worker'`. Each owns one task end-to-end — **planning its own approach, scoping its own files, executing, and verifying** — then returns a structured completion report.
-- **Board** — the durable ledger at `.skyforge/board.json` (per project, in the current working directory), managed only through `scripts/board.mjs`.
+- **Board** — the durable ledger at `.skyforge/board.json` (per project, in the current working directory), managed only through `scripts/board.mjs`. It holds the running line, and a **backlog** of `proposed` follow-ups that only the user promotes into work.
 
 ## Concurrency modes
 
@@ -83,6 +83,12 @@ One request maps to **one task and one worker** — do not split it into subtask
    - **`worktree` mode:** every queued task is dispatchable. Launch each file-editing task with the Agent tool using `isolation: "worktree"`; read-only tasks need no isolation.
    - **`guardrail` mode:** launch **only the tasks `ready` lists** — their areas don't overlap any running task. Do **not** pass `isolation: "worktree"`; workers edit the working tree directly. Leave the rest `queued`; they start as running tasks finish (step 4).
 3. Launch the ready worker(s) with the Agent tool — if several are ready, **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and **name the worker by setting the Agent tool's `description` to its task id followed by a 2–4 word label — e.g. `T-003 payment settlement fixes`.** That id-prefixed string is the name shown in the UI and in completion notifications, so it MUST carry the `T-00N` id: **never dispatch a worker whose `description` does not start with its task id** (a re-dispatch keeps the same id, e.g. `T-003 payment settlement fixes` — do not rename it "Resume …"). Also give it a **thin brief**: the goal in the user's words, the coarse area (guardrail), and the instruction to plan its own approach and report back. Do not spell out files or steps — the worker plans. Include the line: *"Return your final answer in the Skyforge completion-report format."* The thin worker-prompt template is in `references/protocol.md`.
+
+   **Always include the worker's progress command in the brief**, with absolute paths filled in so it works from any cwd (a worktree worker's cwd is not the project root):
+   ```
+   SKYFORGE_ROOT=<abs project root> node <abs skill-dir>/scripts/board.mjs progress T-00N "what you are doing right now"
+   ```
+   Tell it to post one line as soon as it has a plan and again at each milestone. That is what keeps the live board moving instead of showing a frozen row for the length of the task.
 4. Record each returned agentId and mark the task running:
    ```
    node <skill-dir>/scripts/board.mjs set T-00N --status running --agent <agentId>
@@ -103,9 +109,14 @@ Each worker completion arrives as a task-notification. On completion:
    node <skill-dir>/scripts/board.mjs set T-00N --status done --summary "..."
    ```
    Use `failed` if the worker reported failure, `blocked` if it reported a blocker needing user input.
-4. Surface a single line to the user (e.g. `✅ T-002 done: added rate limiting`) and keep going. Do not dump the full report unless asked — but the worker's PLAN and SUMMARY are there when the user wants to see what was done and where.
-5. **If the worker returned `blocked` with a question, relay it to the user right away** — verbatim and attributed to the task (e.g. `❓ T-002 asks: soft-delete or hard-delete dismissed notifications?`). When the user answers, continue the *same* worker via **SendMessage** (its context is intact) rather than re-dispatching from scratch; only re-dispatch if the worker has already ended.
-6. **In `guardrail` mode, a completion frees that task's area.** Immediately run `board.mjs ready` and dispatch any queued task that is now safe (step 3). This is how the queue drains.
+4. **File the report's FOLLOW-UPS on the backlog straight away** — one command per concrete item, before you report back:
+   ```
+   node <skill-dir>/scripts/board.mjs add --title "<the follow-up, verbatim>" --from T-00N
+   ```
+   `--from` marks it `proposed`, so it is parked, never dispatched, and never gated on your memory. Skip vague or already-done items.
+5. Surface a single line to the user (e.g. `✅ T-002 done: added rate limiting  ·  +2 to backlog`) and keep going. Do not dump the full report or list the follow-ups unless asked — the board holds them, and the PLAN and SUMMARY are there when the user wants to see what was done and where.
+6. **If the worker returned `blocked` with a question, relay it to the user right away** — verbatim and attributed to the task (e.g. `❓ T-002 asks: soft-delete or hard-delete dismissed notifications?`). When the user answers, continue the *same* worker via **SendMessage** (its context is intact) rather than re-dispatching from scratch; only re-dispatch if the worker has already ended.
+7. **In `guardrail` mode, a completion frees that task's area.** Immediately run `board.mjs ready` and dispatch any queued task that is now safe (step 3). This is how the queue drains.
 
 In `worktree` mode, the diff lives in the worker's isolated worktree; report what changed and let the user review before anything lands in their working tree, and never auto-merge. In `guardrail` mode, the worker's edits are already in the working tree, so point the user at them (e.g. `git diff`) for review.
 
@@ -117,13 +128,14 @@ When the user asks for status ("how's the factory", "status report", "what's run
    ```
    node <skill-dir>/scripts/dashboard.mjs
    ```
-   It prints `http://localhost:4788` (and simply reprints the URL if it is already running — safe to re-run). The page is a self-contained, editorial **list** of every task — one row per task, sorted running → queued → done/failed — with a mode/auto/counts header band, color-coded status pills, the agent id, the one-line summary, and each queued task's blocker. It reads `.skyforge/board.json` **read-only** and auto-polls every few seconds, so the user watches status change live without refreshing. Start it in the background so it keeps serving while you keep working.
+   It prints `http://localhost:4788` (and simply reprints the URL if it is already running — safe to re-run). The page is a self-contained, editorial **list** of every task — one row per task, sorted running → queued → done/failed — with a mode/auto/counts header band, color-coded status pills, the agent id, **each running worker's live progress line**, the one-line summary, and each queued task's blocker. Proposed follow-ups appear in a separate **Backlog** section below the line. It reads `.skyforge/board.json` **read-only** and auto-polls every few seconds, so the user watches progress lines and status change live without refreshing. Start it in the background so it keeps serving while you keep working.
 2. **Text fallback.** For an inline snapshot (or when a browser isn't handy), run:
    ```
    node <skill-dir>/scripts/board.mjs report
    ```
+   It shows the same thing inline, including progress lines under running tasks and a BACKLOG section at the end.
 
-Add brief manager commentary: what is blocked and why, what is waiting on approval, and what is ready for review.
+Add brief manager commentary: what is blocked and why, what is waiting on approval, and what is ready for review. If the backlog has items, mention the count and that `promote` is the user's call — never promote or dispatch one yourself.
 
 ### 6. Keep feeding
 
@@ -144,9 +156,12 @@ Live workers are bound to the session that launched them — they **do not** sur
 - In `guardrail` mode, never launch a task whose area overlaps a running task; always gate dispatch on `board.mjs ready`.
 - Record a genuine run-after dependency (a task that needs another's *result*, not just its files) with `--blocked-by`; `ready` holds it queued until the dependency is `done`. State a queued task's blocker from `ready`/`report`, which name it — do not narrate the queue from memory.
 - Relay a worker's `blocked` question to the user immediately; resume the same worker via SendMessage once answered.
+- Every dispatched worker gets its **progress command** (with absolute paths) in its brief — a worker that cannot post progress leaves a dead row on the live board.
+- **File FOLLOW-UPS on the backlog as each task closes** (`add --from`), never "at the next intake" — anything held in your head across a long session is lost.
+- **Only the user promotes.** Never run `promote` unprompted and never dispatch a `proposed` task; the backlog is a parking lot, not a queue.
 - Never auto-merge a worker's worktree (`worktree` mode); the user reviews first.
 - If concurrency limits hold a task back, leave it `queued` and say so — never silently drop it.
-- Statuses are exactly: `queued`, `running`, `done`, `failed`, `blocked`.
+- Statuses are exactly: `proposed`, `queued`, `running`, `done`, `failed`, `blocked`.
 
 ## Board CLI quick reference
 
@@ -155,13 +170,17 @@ Live workers are bound to the session that launched them — they **do not** sur
 | `board.mjs init [--mode worktree\|guardrail] [--auto on\|off]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets mode + auto |
 | `board.mjs mode [--set worktree\|guardrail]` | Show or change the concurrency mode |
 | `board.mjs auto [--set on\|off]` | Show or change auto mode (dispatch without approval) |
-| `board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "src/area"] [--blocked-by "T-00N"]` | Add a task; prints its id. In guardrail mode `--files` is the coarse area, not a precise list; `--blocked-by` = run-after dependency ids |
+| `board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "src/area"] [--blocked-by "T-00N"] [--from T-00N]` | Add a task; prints its id. In guardrail mode `--files` is the coarse area, not a precise list; `--blocked-by` = run-after dependency ids; `--from` files it on the **backlog** as a follow-up of that task |
 | `board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."] [--blocked-by "..."]` | Update a task (`--blocked-by ""` clears the dependency) |
-| `board.mjs ready` | Queued tasks safe to dispatch now (mode-aware); reports each held task's blocker(s) |
+| `board.mjs progress <id> "..."` | The **worker's** current-activity line, shown live on the board (replaces the previous line) |
+| `board.mjs promote <id> [<id>...]` | Backlog → queued. **User's call only** |
+| `board.mjs ready` | Queued tasks safe to dispatch now (mode-aware); reports each held task's blocker(s). Never returns backlog tasks |
 | `board.mjs list [--status <s>]` | Compact task table |
 | `board.mjs get <id>` | Full JSON for one task |
 | `board.mjs note <id> "text"` | Append text to the task's brief file |
 | `board.mjs report` | Grouped human-readable status |
+
+Set `SKYFORGE_ROOT=<project root>` when calling from a different cwd (a worker inside a worktree must do this). Mutating commands take a short-lived lock, so parallel calls are safe.
 
 **Self-update (separate script):** `node <skill-dir>/scripts/update.mjs` syncs the installed skill, scripts, and worker agent with the upstream repo.
 
@@ -177,8 +196,8 @@ Live workers are bound to the session that launched them — they **do not** sur
 
 ## Additional resources
 
-- **`references/protocol.md`** — full board schema, the worker-prompt template, the completion-report format, and edge cases (dead worker, blocked task, re-dispatch).
-- **`scripts/board.mjs`** — the ledger CLI (the only writer of the board).
-- **`scripts/dashboard.mjs`** — read-only live board: a themed task **list** served at `http://localhost:4788`, auto-polling `.skyforge/board.json` (never writes it).
+- **`references/protocol.md`** — full board schema, the backlog (`proposed`/`promote`) rules, the worker-prompt template, the completion-report format, and edge cases (dead worker, blocked task, re-dispatch).
+- **`scripts/board.mjs`** — the ledger CLI (the only writer of the board; mutations are lock-serialised).
+- **`scripts/dashboard.mjs`** — read-only live board: a themed task **list** with live worker progress and a Backlog section, served at `http://localhost:4788`, auto-polling `.skyforge/board.json` (never writes it).
 - **`scripts/update.mjs`** — the self-updater: pulls the latest skill, scripts, and worker agent from the upstream repo, once a day, keeping any file you edited locally. Install record lives at `~/.claude/.skyforge-update.json`.
 - **Worker agent** — `~/.claude/agents/skyforge-worker.md` defines the `skyforge-worker` subagent and its completion-report format.
