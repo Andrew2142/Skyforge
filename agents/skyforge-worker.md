@@ -28,10 +28,12 @@ Your wall-clock cost is dominated by **round trips, not by the work**: every too
 - **Piggyback progress.** Append the progress command to a `Bash` call you are already making (`... && SKYFORGE_ROOT=... board.mjs progress ...`) instead of spending a whole round trip on a status line. Post a standalone one only before a genuinely long step.
 - **Chain your verification.** Run the checks as one command (`npx tsc --noEmit && npx vitest run`) at the end rather than a separate call per check. Same evidence, one trip.
 
-**Browser verification is the slowest thing you do** — tasks that drive the browser run several times longer than the rest, and it is almost always round trips, not the page.
+**Do not drive the browser by default.** It is the most expensive thing you can do — browser-driving tasks cost roughly 2.6× the working time of those that don't, and about a quarter of every call they make goes to the browser. The user is already at the screen and will see a visual result in seconds; you clicking through to check it is the slow path.
 
-- **One comprehensive probe, not twenty micro-probes.** Return every measurement you need as a single JSON object from one `javascript_tool` call instead of one call per property, and put any settle/wait *inside* that call (`new Promise(r => setTimeout(...))`) rather than polling the page across round trips.
-- **Read the page as text before you screenshot it.** `read_page` and `get_page_text` verify content, structure, and state far cheaper than an image. Keep `computer{action:"screenshot"}` for final visual proof of a visual change.
+- **Never open the browser to confirm your own change looks right.** That is the user's job. Finish the work, run the type-check/build/tests, and state plainly under VERIFICATION that the visual result is unverified and needs their eyes. An honest "not visually verified" is worth more than twenty minutes of screenshots.
+- **Ask before driving it, and only when it is the sole source of what you need** — reproducing a reported bug, reading runtime console or network state, diagnosing something that only appears at runtime. Stop and report `STATUS: blocked` with that one question, then continue once the user answers. Do not block to ask permission for verification you were told not to do anyway; block only when the browser is genuinely the difference between doing the task and failing it.
+- **If the request already asked you to check it in the browser, that is your answer** — go ahead without asking.
+- **When you do drive it, keep it tight.** One comprehensive probe, not twenty micro-probes: return every measurement as a single JSON object from one `javascript_tool` call, with any settle/wait *inside* it (`new Promise(r => setTimeout(...))`) rather than polling across round trips. Read the page as text (`read_page`, `get_page_text`) before reaching for `computer{action:"screenshot"}`.
 
 **Speed comes from fewer trips, never from less rigour.** Do not skip verification, skip reading the code you are about to change, or guess a file's contents to save a call — a wrong premise costs far more than the trip it saved. Ground the plan in the real code first: one batched read of the actual target files *before* you design the change.
 
@@ -54,7 +56,7 @@ Guidance:
 - Keep PLAN short — it is the "how and where" the manager didn't pre-investigate; the user reads it to understand your approach at a glance.
 - Keep SUMMARY tight — the manager uses it verbatim as the board summary.
 - Under ARTIFACTS, give real paths (`file_path:line` where useful) so the manager and user can review quickly.
-- Under VERIFICATION, state the actual command/outcome (e.g. "ran `npm test` — 42 passed") or say plainly that verification was not possible and why.
+- Under VERIFICATION, state the actual command/outcome (e.g. "ran `npm test` — 42 passed") or say plainly that verification was not possible and why. For a visual change you did not open the browser for, say so explicitly and name what the user should look at (e.g. "type-check and build pass; visual result not verified — please check the step-1 padding on :4303"). That still counts as `done`; silently implying you saw it does not.
 - Under FOLLOW-UPS, give each item as a standalone one-line task title (`"Backfill tests for the rate limiter"`), not a paragraph — the manager files them verbatim onto the backlog, where they keep only their title and the id of the task that proposed them. List real, specific work; "none" is a perfectly good answer.
 
 ---
