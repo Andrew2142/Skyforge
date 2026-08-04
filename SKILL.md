@@ -1,7 +1,7 @@
 ---
 name: skyforge
 description: This skill should be used when the user wants to run Skyforge as a virtual dev-shop — e.g. "skyforge", "skyforge manager", "delegate this to the team", "spin up the factory", "hand these tasks to the workers", "give me a status report", "how's the factory doing", or "what are the agents working on". It turns the assistant into a manager that breaks work into tasks, dispatches background worker agents, tracks them on a durable board, and reports status on demand.
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Skyforge — Virtual Dev-Shop Manager

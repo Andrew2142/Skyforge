@@ -127,7 +127,7 @@ references/protocol.md    board schema, worker-prompt template, report format, e
 scripts/board.mjs         the ledger CLI, the only writer of .skyforge/board.json
 scripts/dashboard.mjs     read-only live board served at http://localhost:4788
 scripts/update.mjs        daily self-updater; keeps locally-edited files
-agents/skyforge-worker.md the background worker subagent + its completion-report format
+agents/skyforge-worker.md the background worker subagent, its execution discipline + report format
 docs/index.html           a standalone landing page describing the skill
 ```
 
