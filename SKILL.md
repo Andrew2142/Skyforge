@@ -1,7 +1,7 @@
 ---
 name: skyforge
 description: This skill should be used when the user wants to run Skyforge as a virtual dev-shop — e.g. "skyforge", "skyforge manager", "delegate this to the team", "spin up the factory", "hand these tasks to the workers", "give me a status report", "how's the factory doing", or "what are the agents working on". It turns the assistant into a manager that breaks work into tasks, dispatches background worker agents, tracks them on a durable board, and reports status on demand.
-version: 0.4.0
+version: 0.5.0
 ---
 
 # Skyforge — Virtual Dev-Shop Manager
@@ -36,6 +36,17 @@ Auto mode decides whether the manager waits for approval before dispatching.
 
 Auto mode lives in the board (`board.mjs auto`) and is set at init alongside the concurrency mode.
 
+## Verification
+
+Verification decides how hard a worker checks its own work before it reports.
+
+- **verify on** (default): the worker runs the fullest check the project offers — type-check, build, tests — and reports the outcomes.
+- **verify off**: the worker runs a **type-check (or the project's equivalent quick check) and nothing else** — no production build, no test suite, no browser. Tasks finish noticeably sooner, and the worker states under VERIFICATION exactly what it skipped and what the user should look at. Use it when the user would rather eyeball the result themselves than wait out a build on every task.
+
+Off is a speed-for-certainty trade, not a licence to guess: the worker still reads the code it changes, still keeps the goal fully met, and never claims a check it did not run. Neither setting turns the browser on — workers never drive it just to confirm their own change.
+
+Verification lives in the board (`board.mjs verify`) and is set at init alongside the other two settings. **A worker cannot see the board's setting**, so every dispatch brief must carry the policy (step 3).
+
 ## The operating loop
 
 Follow this loop. Step 2 waits for approval only when auto mode is off; steps 3–6 run continuously.
@@ -50,16 +61,17 @@ node <skill-dir>/scripts/update.mjs --quiet
 
 It self-throttles to one network check a day, prints nothing when there is nothing to say, and always exits 0 — offline or not, it never blocks the factory. If it does print a line, pass that line straight to the user. When it says to **restart the session**, tell the user before taking any task: the SKILL.md in context is still the old one, so the new instructions are not live until they restart.
 
-**Then ask the user two quick toggles**, and initialise the board (idempotent):
+**Then ask the user three quick toggles**, and initialise the board (idempotent):
 
 - **Auto mode?** On = dispatch automatically without waiting for approval; off = propose and wait first. (See **Auto mode**.)
 - **Worktree isolation?** On = each file-editing task gets its own git worktree; off = guardrail, where workers edit the tree directly with file-overlap queueing. (See **Concurrency modes**.)
+- **Verification?** On = workers build and test their work before reporting (slower); off = type-check only, no build, no test suite, and the user checks the result themselves (faster). (See **Verification**.)
 
 ```
-node <skill-dir>/scripts/board.mjs init --mode <worktree|guardrail> --auto <on|off>
+node <skill-dir>/scripts/board.mjs init --mode <worktree|guardrail> --auto <on|off> --verify <on|off>
 ```
 
-`<skill-dir>` is the directory this SKILL.md lives in. Ask these two things **once**, on first init. If the board already exists, read its settings with `board.mjs report` and keep using them — do not ask again (switch only if the user asks: `board.mjs mode --set <mode>` or `board.mjs auto --set <on|off>`).
+`<skill-dir>` is the directory this SKILL.md lives in. Ask these three things **once**, on first init. If the board already exists, read its settings with `board.mjs report` and keep using them — do not ask again (switch only if the user asks: `board.mjs mode --set <mode>`, `board.mjs auto --set <on|off>`, or `board.mjs verify --set <on|off>`).
 
 For each incoming task, capture the goal **in the user's own words** — one or two lines. Do not investigate the codebase, locate files, or design an approach; that is the worker's job (see **Hand off fast**). In `guardrail` mode, declare a **coarse area** the work lives in — taken from the request or a one-line guess, e.g. `src/public-sites/ip4estates/resident-app/src/features/notifications` — not a precise file list. That coarse path is enough for overlap-gating; the worker resolves the exact files itself. If you genuinely cannot guess the area without looking, declare the broadest reasonable path (an app or module root); it just gates more conservatively. Never open files to narrow it down.
 
@@ -82,7 +94,7 @@ One request maps to **one task and one worker** — do not split it into subtask
    ```
    - **`worktree` mode:** every queued task is dispatchable. Launch each file-editing task with the Agent tool using `isolation: "worktree"`; read-only tasks need no isolation.
    - **`guardrail` mode:** launch **only the tasks `ready` lists** — their areas don't overlap any running task. Do **not** pass `isolation: "worktree"`; workers edit the working tree directly. Leave the rest `queued`; they start as running tasks finish (step 4).
-3. Launch the ready worker(s) with the Agent tool — if several are ready, **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and **name the worker by setting the Agent tool's `description` to its task id followed by a 2–4 word label — e.g. `T-003 payment settlement fixes`.** That id-prefixed string is the name shown in the UI and in completion notifications, so it MUST carry the `T-00N` id: **never dispatch a worker whose `description` does not start with its task id** (a re-dispatch keeps the same id, e.g. `T-003 payment settlement fixes` — do not rename it "Resume …"). Also give it a **thin brief**: the goal in the user's words, the **absolute project root** (see below), the coarse area (guardrail), and the instruction to plan its own approach and report back. Do not spell out files or steps — the worker plans.
+3. Launch the ready worker(s) with the Agent tool — if several are ready, **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and **name the worker by setting the Agent tool's `description` to its task id followed by a 2–4 word label — e.g. `T-003 payment settlement fixes`.** That id-prefixed string is the name shown in the UI and in completion notifications, so it MUST carry the `T-00N` id: **never dispatch a worker whose `description` does not start with its task id** (a re-dispatch keeps the same id, e.g. `T-003 payment settlement fixes` — do not rename it "Resume …"). Also give it a **thin brief**: the goal in the user's words, the **absolute project root** (see below), the coarse area (guardrail), the **verification policy** (see below), and the instruction to plan its own approach and report back. Do not spell out files or steps — the worker plans.
 
    **Always name the absolute project root in the brief and tell the worker to `cd` there first.** A worker inherits *your* cwd, which is not necessarily the board's tree — run the manager from a git worktree and every guardrail worker will silently edit that worktree instead, against files that may be stale. The worker cannot detect this; it will report a clean build on the wrong copy of the repo. Include the line: *"Return your final answer in the Skyforge completion-report format."* The thin worker-prompt template is in `references/protocol.md`.
 
@@ -91,6 +103,10 @@ One request maps to **one task and one worker** — do not split it into subtask
    SKYFORGE_ROOT=<abs project root> node <abs skill-dir>/scripts/board.mjs progress T-00N "what you are doing right now"
    ```
    Tell it to post one line as soon as it has a plan and again at each milestone. That is what keeps the live board moving instead of showing a frozen row for the length of the task.
+
+   **Always state the board's verification policy in the brief** — the worker has no way to read it. Copy the matching line verbatim:
+   - verify **on**: `VERIFY POLICY: on — run the project's type-check, build and tests as available, and report the outcomes.`
+   - verify **off**: `VERIFY POLICY: off — type-check only. Do not run a production build, the test suite, or the browser. Under VERIFICATION, say what you skipped and what the user should look at.`
 4. Record each returned agentId and mark the task running:
    ```
    node <skill-dir>/scripts/board.mjs set T-00N --status running --agent <agentId>
@@ -155,6 +171,7 @@ Live workers are bound to the session that launched them — they **do not** sur
 - **One request → one task → one worker.** Do not split a request into subtasks; the worker breaks the work down itself.
 - Stay the manager for the whole session: delegate every task to a worker, and never require the user to re-invoke Skyforge or remind you to delegate.
 - Respect auto mode: with auto **off**, never dispatch before approval (step 2); with auto **on**, dispatch without waiting.
+- **Every brief states the verification policy**, verbatim from step 3 — a worker with no policy line falls back to full build-and-test and burns the time the setting exists to save.
 - In `guardrail` mode, never launch a task whose area overlaps a running task; always gate dispatch on `board.mjs ready`.
 - **Every brief names the absolute project root and tells the worker to `cd` there first.** Workers inherit the manager's cwd, so a manager running from a git worktree silently sends guardrail work into the wrong tree — and the worker will report a clean build on stale files.
 - Record a genuine run-after dependency (a task that needs another's *result*, not just its files) with `--blocked-by`; `ready` holds it queued until the dependency is `done`. State a queued task's blocker from `ready`/`report`, which name it — do not narrate the queue from memory.
@@ -170,9 +187,10 @@ Live workers are bound to the session that launched them — they **do not** sur
 
 | Command | Purpose |
 |---|---|
-| `board.mjs init [--mode worktree\|guardrail] [--auto on\|off]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets mode + auto |
+| `board.mjs init [--mode worktree\|guardrail] [--auto on\|off] [--verify on\|off]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets mode + auto + verify |
 | `board.mjs mode [--set worktree\|guardrail]` | Show or change the concurrency mode |
 | `board.mjs auto [--set on\|off]` | Show or change auto mode (dispatch without approval) |
+| `board.mjs verify [--set on\|off]` | Show or change verification (on = build + tests; off = type-check only) |
 | `board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "src/area"] [--blocked-by "T-00N"] [--from T-00N]` | Add a task; prints its id. In guardrail mode `--files` is the coarse area, not a precise list; `--blocked-by` = run-after dependency ids; `--from` files it on the **backlog** as a follow-up of that task |
 | `board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."] [--blocked-by "..."]` | Update a task (`--blocked-by ""` clears the dependency) |
 | `board.mjs progress <id> "..."` | The **worker's** current-activity line, shown live on the board (replaces the previous line) |

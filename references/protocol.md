@@ -11,6 +11,7 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
   "createdAt": "2026-07-13T11:00:00.000Z",
   "mode": "guardrail",
   "auto": false,
+  "verify": true,
   "tasks": [
     {
       "id": "T-001",
@@ -40,6 +41,7 @@ Detailed material kept out of SKILL.md: the board schema, the worker-prompt temp
 - `progress` / `progressAt` are the worker's current-activity line and when it was posted — written by the worker itself with `board.mjs progress`. A single line, replaced on each call, not a log. Cleared automatically when a task (re-)enters `running`, so a re-dispatch never shows the previous attempt's activity.
 - `mode` (board-level) is `worktree` or `guardrail`; see **Concurrency modes** below. A board written before modes existed is read as `worktree`.
 - `auto` (board-level): when true, the manager dispatches without waiting for approval. Set at init (`--auto on`) or with `board.mjs auto --set on|off`.
+- `verify` (board-level): when true (the default, and how a board written before this setting is read), workers build and test their work before reporting; when false they type-check only — no production build, no test suite, no browser — and say what they skipped. Set at init (`--verify off`) or with `board.mjs verify --set on|off`. Workers never read the board, so the manager copies the policy into every brief.
 - `files` are the paths a task declares it will create or edit; used for overlap gating in `guardrail` mode, ignored in `worktree` mode.
 - `blockedBy` lists task ids this task explicitly waits on — a **run-after dependency**, independent of file overlap. It stays out of `ready` until every listed id is `done`, in *both* modes. Absent/empty means no dependency. Set with `--blocked-by` on `add`/`set` (`--blocked-by ""` clears it).
 - Task goals and final reports live in `.skyforge/tasks/<id>.md`, not in the JSON (keeps the JSON small and the reports readable).
@@ -95,9 +97,17 @@ Stay within: <coarse path, e.g. src/public-sites/.../notifications>.
 Work out the exact files yourself; do not edit outside this area.
 
 ## Your job
-Plan your own approach, then execute it end-to-end and verify it. Locating
-files, choosing the design, and breaking the work into steps are all yours —
-that is why this brief is thin.
+Plan your own approach, then execute it end-to-end. Locating files, choosing
+the design, and breaking the work into steps are all yours — that is why this
+brief is thin.
+
+## Verification
+<one of — copied verbatim from the board's setting>
+VERIFY POLICY: on — run the project's type-check, build and tests as
+available, and report the outcomes.
+VERIFY POLICY: off — type-check only. Do not run a production build, the test
+suite, or the browser. Under VERIFICATION, say what you skipped and what the
+user should look at.
 
 Batch independent tool calls into one message — especially while locating
 files. Prefer Grep/Glob/Read over shelling out, and hand a broad "where does
@@ -131,6 +141,7 @@ Launch options:
 - `guardrail` mode, file-editing task → no isolation; the worker edits the working tree, so dispatch only when `board.mjs ready` clears it, and tell the worker to stay within its declared **coarse area** (it resolves the exact files itself).
 - Read-only research task → no isolation, in either mode.
 - Always `subagent_type: "skyforge-worker"`.
+- Always carry the board's `verify` setting into the brief's **Verification** block — a brief with no policy line leaves the worker on full build-and-test.
 - Always set the Agent tool `description` to `T-00N <2–4 word label>` (e.g. `T-003 payment settlement fixes`). This is the worker's display name in the UI and completion notifications, so it MUST start with the task id — keep the same id on re-dispatch; do not prefix "Resume …" or drop the id.
 - Launch independent workers in one message (concurrent). Concurrency is capped by the Agent tool; excess workers queue — leave those board entries `queued` and note it to the user.
 

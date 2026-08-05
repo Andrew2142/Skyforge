@@ -92,10 +92,11 @@ Trigger it in natural language. The manager listens for intent, not exact words:
 - `spin up the factory`
 - `how's the factory doing?`
 
-The **first** time you spin it up in a chat, Skyforge asks two quick toggles:
+The **first** time you spin it up in a chat, Skyforge asks three quick toggles:
 
 - **Auto mode** — on: dispatch automatically without waiting for your approval; off: propose a breakdown and wait for your go-ahead first.
 - **Worktree isolation** — on: each file-editing task runs in its own git worktree; off: guardrail mode (workers edit the tree directly, with file-overlap queueing).
+- **Verification** — on: workers build and test their work before reporting; off: type-check only — no build, no test suite, no browser — so tasks land sooner and you check the result yourself. Workers say what they skipped either way.
 
 After that it stays engaged for the rest of the session — every task you hand over
 is delegated to a worker, no need to remind it. Ask for status any time
@@ -137,9 +138,10 @@ docs/index.html           a standalone landing page describing the skill
 
 | Command | Purpose |
 |---|---|
-| `node board.mjs init [--mode worktree\|guardrail] [--auto on\|off]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets mode + auto |
+| `node board.mjs init [--mode worktree\|guardrail] [--auto on\|off] [--verify on\|off]` | Create `.skyforge/board.json` + `tasks/` (idempotent); sets mode + auto + verify |
 | `node board.mjs mode [--set worktree\|guardrail]` | Show or change the concurrency mode |
 | `node board.mjs auto [--set on\|off]` | Show or change auto mode (dispatch without approval) |
+| `node board.mjs verify [--set on\|off]` | Show or change verification (on = build + tests; off = type-check only) |
 | `node board.mjs add --title "..." [--parent T-00N] [--brief "..."] [--files "src/area"] [--blocked-by "T-00N"] [--from T-00N]` | Add a task; prints its id. `--blocked-by` = run-after dependency ids; `--from` files it on the backlog as a follow-up of that task |
 | `node board.mjs set <id> --status <s> [--agent <id>] [--summary "..."] [--files "..."] [--blocked-by "..."]` | Update a task (`--blocked-by ""` clears the dependency) |
 | `node board.mjs progress <id> "..."` | The worker's current-activity line, shown live on the board (replaces the previous one) |
