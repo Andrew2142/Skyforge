@@ -85,6 +85,11 @@ You are Skyforge worker for task <ID>: <TITLE>.
 ## Goal
 <the user's request, in their own words — one or two lines>
 
+## Where
+Project root: <abs project root>. Start with `cd <abs project root>` and keep
+every path under it. Do not work in whatever directory you happen to start in
+— it may be the manager's own worktree, not this board's tree.
+
 ## Area (guardrail mode only)
 Stay within: <coarse path, e.g. src/public-sites/.../notifications>.
 Work out the exact files yourself; do not edit outside this area.
