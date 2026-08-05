@@ -20,11 +20,11 @@ const BOARD = join(process.env.SKYFORGE_ROOT || process.cwd(), '.skyforge', 'boa
 
 // 1. Fresh read on every request; tolerate a missing or half-written board.
 function readBoard() {
-  if (!existsSync(BOARD)) return { mode: '—', auto: false, tasks: [], missing: true };
+  if (!existsSync(BOARD)) return { mode: '—', auto: false, verify: true, tasks: [], missing: true };
   try {
     return JSON.parse(readFileSync(BOARD, 'utf8'));
   } catch {
-    return { mode: '—', auto: false, tasks: [], unreadable: true };
+    return { mode: '—', auto: false, verify: true, tasks: [], unreadable: true };
   }
 }
 
@@ -263,7 +263,7 @@ const APP = `
   }
 
   function render(board){
-    if(!board||!Array.isArray(board.tasks)) board={mode:'—',auto:false,tasks:[]};
+    if(!board||!Array.isArray(board.tasks)) board={mode:'—',auto:false,verify:true,tasks:[]};
     var all=board.tasks.slice();
     // Proposed follow-ups are backlog, not factory floor — they get their own
     // section below the ledger and are never mixed into the line.
@@ -277,9 +277,9 @@ const APP = `
     var counts={running:0,blocked:0,queued:0,failed:0,done:0,proposed:0};
     all.forEach(function(t){if(counts[t.status]!=null)counts[t.status]++;});
 
-    // header line: mode / auto / total, then the tallies
+    // header line: mode / auto / verify / total, then the tallies
     document.getElementById('meta').innerHTML =
-      'Mode <b>'+esc(board.mode||'—')+'</b> \\u00b7 Auto <b>'+(board.auto?'on':'off')+'</b> \\u00b7 <b>'+tasks.length+'</b> task'+(tasks.length===1?'':'s');
+      'Mode <b>'+esc(board.mode||'—')+'</b> \\u00b7 Auto <b>'+(board.auto?'on':'off')+'</b> \\u00b7 Verify <b>'+(board.verify===false?'off':'on')+'</b> \\u00b7 <b>'+tasks.length+'</b> task'+(tasks.length===1?'':'s');
     document.getElementById('tallies').innerHTML = ORDER.concat(counts.proposed?['proposed']:[]).map(function(st){
       return '<span class="tally'+(counts[st]?'':' zero')+'"><span class="dot dot--'+st+'"></span>'+esc(LABEL[st])+' <b>'+counts[st]+'</b></span>';
     }).join('');

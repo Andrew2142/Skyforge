@@ -408,7 +408,7 @@
       run on their own.
     </p>
     <ol class="loop">
-      <li><h3>Send a task</h3><p>Say <em>“skyforge”</em> and describe the task. On first run it asks two toggles (auto mode and worktree isolation), then creates the board in the current repo.</p></li>
+      <li><h3>Send a task</h3><p>Say <em>“skyforge”</em> and describe the task. On first run it asks three toggles (auto mode, worktree isolation and verification), then creates the board in the current repo.</p></li>
       <li><h3>Approve, or skip</h3><p>Skyforge proposes a one-line breakdown (which tasks write files, which are read-only) and waits for your go-ahead. With auto mode on, it skips the prompt and dispatches immediately.</p></li>
       <li><h3>Parallel dispatch</h3><p>Approved tasks launch as background workers and run in parallel. They’re held back only when they’d touch the same files, or each gets its own git worktree.</p></li>
       <li><h3>Get the report</h3><p>Each worker returns a structured report; the board updates and you get a single line, not a wall of text.</p></li>
@@ -502,6 +502,15 @@
       </svg>
       <figcaption><b>Figure 4.</b> Auto off waits for your approval; auto on dispatches immediately.</figcaption>
     </figure>
+
+    <p>
+      And a last one: verification. With it <b>on</b>, a worker builds and
+      tests its work before reporting. With it <b>off</b>, it type-checks and
+      stops — no production build, no test suite, no browser — so the task
+      lands in the time the build would have taken and you look at the result
+      yourself. Either way the worker says under <span class="mono">VERIFICATION</span>
+      what it checked, what it skipped, and what deserves your eyes.
+    </p>
   </section>
 
   <hr class="break">
