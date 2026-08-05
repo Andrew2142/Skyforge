@@ -1,7 +1,7 @@
 ---
 name: skyforge
 description: This skill should be used when the user wants to run Skyforge as a virtual dev-shop — e.g. "skyforge", "skyforge manager", "delegate this to the team", "spin up the factory", "hand these tasks to the workers", "give me a status report", "how's the factory doing", or "what are the agents working on". It turns the assistant into a manager that breaks work into tasks, dispatches background worker agents, tracks them on a durable board, and reports status on demand.
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Skyforge — Virtual Dev-Shop Manager
@@ -82,7 +82,9 @@ One request maps to **one task and one worker** — do not split it into subtask
    ```
    - **`worktree` mode:** every queued task is dispatchable. Launch each file-editing task with the Agent tool using `isolation: "worktree"`; read-only tasks need no isolation.
    - **`guardrail` mode:** launch **only the tasks `ready` lists** — their areas don't overlap any running task. Do **not** pass `isolation: "worktree"`; workers edit the working tree directly. Leave the rest `queued`; they start as running tasks finish (step 4).
-3. Launch the ready worker(s) with the Agent tool — if several are ready, **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and **name the worker by setting the Agent tool's `description` to its task id followed by a 2–4 word label — e.g. `T-003 payment settlement fixes`.** That id-prefixed string is the name shown in the UI and in completion notifications, so it MUST carry the `T-00N` id: **never dispatch a worker whose `description` does not start with its task id** (a re-dispatch keeps the same id, e.g. `T-003 payment settlement fixes` — do not rename it "Resume …"). Also give it a **thin brief**: the goal in the user's words, the coarse area (guardrail), and the instruction to plan its own approach and report back. Do not spell out files or steps — the worker plans. Include the line: *"Return your final answer in the Skyforge completion-report format."* The thin worker-prompt template is in `references/protocol.md`.
+3. Launch the ready worker(s) with the Agent tool — if several are ready, **multiple in a single message** so they run concurrently. Pass `subagent_type: "skyforge-worker"` and **name the worker by setting the Agent tool's `description` to its task id followed by a 2–4 word label — e.g. `T-003 payment settlement fixes`.** That id-prefixed string is the name shown in the UI and in completion notifications, so it MUST carry the `T-00N` id: **never dispatch a worker whose `description` does not start with its task id** (a re-dispatch keeps the same id, e.g. `T-003 payment settlement fixes` — do not rename it "Resume …"). Also give it a **thin brief**: the goal in the user's words, the **absolute project root** (see below), the coarse area (guardrail), and the instruction to plan its own approach and report back. Do not spell out files or steps — the worker plans.
+
+   **Always name the absolute project root in the brief and tell the worker to `cd` there first.** A worker inherits *your* cwd, which is not necessarily the board's tree — run the manager from a git worktree and every guardrail worker will silently edit that worktree instead, against files that may be stale. The worker cannot detect this; it will report a clean build on the wrong copy of the repo. Include the line: *"Return your final answer in the Skyforge completion-report format."* The thin worker-prompt template is in `references/protocol.md`.
 
    **Always include the worker's progress command in the brief**, with absolute paths filled in so it works from any cwd (a worktree worker's cwd is not the project root):
    ```
@@ -154,6 +156,7 @@ Live workers are bound to the session that launched them — they **do not** sur
 - Stay the manager for the whole session: delegate every task to a worker, and never require the user to re-invoke Skyforge or remind you to delegate.
 - Respect auto mode: with auto **off**, never dispatch before approval (step 2); with auto **on**, dispatch without waiting.
 - In `guardrail` mode, never launch a task whose area overlaps a running task; always gate dispatch on `board.mjs ready`.
+- **Every brief names the absolute project root and tells the worker to `cd` there first.** Workers inherit the manager's cwd, so a manager running from a git worktree silently sends guardrail work into the wrong tree — and the worker will report a clean build on stale files.
 - Record a genuine run-after dependency (a task that needs another's *result*, not just its files) with `--blocked-by`; `ready` holds it queued until the dependency is `done`. State a queued task's blocker from `ready`/`report`, which name it — do not narrate the queue from memory.
 - Relay a worker's `blocked` question to the user immediately; resume the same worker via SendMessage once answered.
 - Every dispatched worker gets its **progress command** (with absolute paths) in its brief — a worker that cannot post progress leaves a dead row on the live board.
